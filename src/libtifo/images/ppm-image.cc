@@ -1,6 +1,7 @@
 #include <images/ppm-image.hh>
 
 #include <fstream>
+#include <iostream>
 #include <set>
 #include <stdexcept>
 
@@ -10,11 +11,11 @@ namespace tifo::image {
         if (src_path.extension() != ".ppm") {
             throw std::runtime_error("tifo::image::PPMImage - the source file: " + src_path.string() + " does not have a .ppm extension.");
         }
-        std::ifstream ifs(src_path);
+        std::ifstream ifs(src_path, std::ios::binary);
         if (!ifs.is_open()) {
             throw std::runtime_error("tifo::image::PPMImage - the source file: " + src_path.string() + " could not be opened.");
         }
-        ifs >> std::ws; // skip whitespaces
+        ifs >> std::ws;
         
         std::string file_format;
         ifs >> file_format;
@@ -28,10 +29,12 @@ namespace tifo::image {
         float max_color = 0;
         ifs >> max_color;
         pixels_.resize(number_pixels);
+        std::cout << "image width: " << width_ << ", height: " << height_ << "\n";
         for (int pixel_index = 0; pixel_index < number_pixels; pixel_index++) {
+            pixels_[pixel_index].resize(3);
             for (int color_index = 0; color_index < 3; color_index++) {
-                unsigned char element;
-                ifs >> element;
+                char element;
+                ifs.read(&element, 1);
                 pixels_[pixel_index][color_index] = static_cast<float>(element) / max_color; // rescale inside [0, 1]
             }
         }
@@ -49,7 +52,8 @@ namespace tifo::image {
         float number_pixels = width_ * height_;
         for (int pixel_index = 0; pixel_index < number_pixels; pixel_index++) {
             for (int color_index = 0; color_index < 3; color_index++) {
-                ofs << static_cast<unsigned char>(pixels_[pixel_index][color_index] * 255);
+                char value = static_cast<char>(pixels_[pixel_index][color_index] * 255.f);
+                ofs.write(&value, 1);
             }
         }
     }

@@ -1,9 +1,7 @@
 #pragma once
 
-#include <array>
 #include <filesystem>
 #include <vector>
-#include <array>
 
 namespace fs = std::filesystem;
 
@@ -13,7 +11,7 @@ namespace tifo::image
     class Image
     {
 
-        using container_type = std::vector<std::array<float, 3>>;
+        using container_type = std::vector<std::vector<float>>;
 
         public:
             

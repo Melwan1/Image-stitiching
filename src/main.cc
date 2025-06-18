@@ -2,8 +2,8 @@
 
 int main()
 {
-    tifo::image::PPMImage cat_image;
-    cat_image.read("cute_cat.ppm");
-    cat_image.write("other_cute_cat.ppm");
+    tifo::image::PPMImage image;
+    image.read("julie.ppm");
+    image.write("autre_julie.ppm");
     return 0;
 }
