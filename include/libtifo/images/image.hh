@@ -14,6 +14,7 @@ namespace tifo::image
 
     public:
         Image();
+        virtual ~Image() = default;
         virtual void read(const fs::path& src_path) = 0;
 
         virtual void write(const fs::path& dst_path) const = 0;
@@ -23,6 +24,8 @@ namespace tifo::image
 
         int get_height() const;
         int get_width() const;
+
+        std::vector<Image*> rectangular_cut(int horizontal_slices, int vertical_slices) const;
 
     protected:
         container_type pixels_;
