@@ -28,12 +28,6 @@ namespace tifo::image
         void set_height(int height);
         void set_width(int width);
 
-        std::vector<Image*> rectangular_cut(int horizontal_slices,
-                                            int vertical_slices) const;
-        static Image* rebuild_from_cuts(const std::vector<Image*>& cuts,
-                                        int horizontal_slices,
-                                        int vertical_slices);
-
     protected:
         container_type pixels_;
         int height_;

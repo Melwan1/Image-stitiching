@@ -1,2 +1,2 @@
-target_sources(libtifo PUBLIC
-    builder.cc clean_cut_rectangle_builder.cc)
+add_subdirectory(builder)
+add_subdirectory(cutter)

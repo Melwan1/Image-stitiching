@@ -1,11 +1,11 @@
 #include <images/ppm-image.hh>
-#include <panorama/clean_cut_rectangular_builder.hh>
+#include <panorama/builder/clean_rectangular_builder.hh>
 
-namespace tifo::panorama
+namespace tifo::panorama::builder
 {
 
-    CleanCutRectangularBuilder&
-    CleanCutRectangularBuilder::set_horizontal_slices(int horizontal_slices)
+    CleanRectangularBuilder&
+    CleanRectangularBuilder::set_horizontal_slices(int horizontal_slices)
     {
         if (horizontal_slices <= 0)
         {
@@ -17,8 +17,8 @@ namespace tifo::panorama
         return *this;
     }
 
-    CleanCutRectangularBuilder&
-    CleanCutRectangularBuilder::set_vertical_slices(int vertical_slices)
+    CleanRectangularBuilder&
+    CleanRectangularBuilder::set_vertical_slices(int vertical_slices)
     {
         if (vertical_slices <= 0)
         {
@@ -30,7 +30,7 @@ namespace tifo::panorama
         return *this;
     }
 
-    image::Image* CleanCutRectangularBuilder::build()
+    image::Image* CleanRectangularBuilder::build()
     {
         if (input_images_.size()
                 != static_cast<unsigned>(horizontal_slices_ * vertical_slices_)
@@ -85,4 +85,4 @@ namespace tifo::panorama
         return result_image;
     }
 
-} // namespace tifo::panorama
+} // namespace tifo::panorama::builder
