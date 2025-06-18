@@ -32,6 +32,26 @@ namespace tifo::image
         return width_;
     }
 
+    void Image::set_height(int height)
+    {
+        if (height <= 0)
+        {
+            throw std::runtime_error(
+                "tifo::image::Image - set_height - height is nonpositive");
+        }
+        height_ = height;
+    }
+
+    void Image::set_width(int width)
+    {
+        if (width <= 0)
+        {
+            throw std::runtime_error(
+                "tifo::image::Image - set_width - width is nonpositive");
+        }
+        width_ = width;
+    }
+
     std::vector<Image*> Image::rectangular_cut(int horizontal_slices,
                                                int vertical_slices) const
     {

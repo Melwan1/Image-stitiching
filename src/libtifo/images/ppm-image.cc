@@ -40,8 +40,6 @@ namespace tifo::image
         ifs >> max_color;
         ifs.ignore();
         pixels_.resize(number_pixels);
-        std::cout << "image width: " << width_ << ", height: " << height_
-                  << "\n";
         for (int pixel_index = 0; pixel_index < number_pixels; pixel_index++)
         {
             pixels_[pixel_index].resize(3);
