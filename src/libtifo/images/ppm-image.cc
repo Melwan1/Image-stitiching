@@ -15,7 +15,6 @@ namespace tifo::image {
         if (!ifs.is_open()) {
             throw std::runtime_error("tifo::image::PPMImage - the source file: " + src_path.string() + " could not be opened.");
         }
-        ifs >> std::ws;
         
         std::string file_format;
         ifs >> file_format;
@@ -28,6 +27,7 @@ namespace tifo::image {
         int number_pixels = width_ * height_;
         float max_color = 0;
         ifs >> max_color;
+        ifs.ignore();
         pixels_.resize(number_pixels);
         std::cout << "image width: " << width_ << ", height: " << height_ << "\n";
         for (int pixel_index = 0; pixel_index < number_pixels; pixel_index++) {
