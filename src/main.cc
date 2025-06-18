@@ -1,6 +1,7 @@
 #include <libtifo.hh>
 
-int main() {
+int main()
+{
     say_hello();
     return 0;
 }
