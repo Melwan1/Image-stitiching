@@ -59,8 +59,6 @@ namespace tifo::image
                 int x_max = width_ * (horizontal_index + 1) / horizontal_slices;
                 int y_min = height_ * vertical_index / vertical_slices;
                 int y_max = height_ * (vertical_index + 1) / vertical_slices;
-                std::cout << "image from (" << x_min << ", " << y_min
-                          << ") to (" << x_max << ", " << y_max << ")\n";
 
                 Image* cropped_image = cut_images.at(
                     vertical_index * horizontal_slices + horizontal_index);
@@ -79,8 +77,6 @@ namespace tifo::image
                                 (y - y_min) * cropped_image->width_ + x
                                 - x_min);
                         output_pixel.resize(3);
-                        std::cout << "setting pixel at (" << x - x_min << ", "
-                                  << y - y_min << ")\n";
                         for (int color_index = 0; color_index < 3;
                              color_index++)
                         {
