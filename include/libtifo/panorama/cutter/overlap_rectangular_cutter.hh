@@ -5,7 +5,7 @@
 namespace tifo::panorama::cutter
 {
 
-    class OverlapRectangularCutter : Cutter
+    class OverlapRectangularCutter : public Cutter
     {
     public:
         OverlapRectangularCutter& set_horizontal_slices(int horizontal_slices);
