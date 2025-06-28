@@ -1,4 +1,5 @@
 #include <images/ppm-image.hh>
+#include <panorama/builder/overlap_rectangular_builder.hh>
 #include <panorama/cutter/overlap_rectangular_cutter.hh>
 #include <sstream>
 
@@ -21,6 +22,12 @@ int main()
         oss << "tests/cut_julie_" << index++ << ".ppm";
         cut_image->write(oss.str());
     }
+
+    tifo::panorama::builder::OverlapRectangularBuilder builder;
+    builder.set_input_images(cut_images);
+    builder.set_horizontal_slices(2).set_vertical_slices(3);
+    tifo::image::Image* built_image = builder.build();
+    (void)built_image;
 
     /*tifo::panorama::builder::CleanRectangularBuilder builder;
     builder.set_input_images(cut_images);

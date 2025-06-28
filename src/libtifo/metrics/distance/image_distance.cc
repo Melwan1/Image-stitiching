@@ -137,10 +137,10 @@ namespace tifo::metrics::distance
                     { input_pixel2[0], input_pixel2[1], input_pixel2[2] });
             }
         }
-        return sum_distance;
+        return sum_distance / (crop_grid_size_x * crop_grid_size_y);
     }
 
-    double get_distance_between_rgb_pixels(
+    double ImageDistance::get_distance_between_rgb_pixels(
         const std::tuple<float, float, float>& pixel1,
         const std::tuple<float, float, float>& pixel2)
     {
