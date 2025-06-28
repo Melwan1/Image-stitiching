@@ -31,6 +31,57 @@ namespace tifo::metrics::distance
                 "images have different heights");
         }
         input_images_ = input_images;
+        set_image_crop_grid({ 0, 0, input_images_.first->get_width(),
+                              input_images_.first->get_height() },
+                            0);
+        set_image_crop_grid({ 0, 0, input_images_.second->get_width(),
+                              input_images_.second->get_height() },
+                            1);
+    }
+
+    void
+    ImageDistance::set_image_crop_grid(std::tuple<int, int, int, int> crop_grid,
+                                       int image_index)
+    {
+        if (image_index < 0 || image_index > 1)
+        {
+            throw std::runtime_error(
+                "tifo::metrics::distance::ImageDistance - set_image_crop_grid "
+                "- image_index must be 0 or 1.");
+        }
+        if (std::get<0>(crop_grid) < 0 || std::get<1>(crop_grid) < 0
+            || std::get<2>(crop_grid) < 0 || std::get<3>(crop_grid) < 0)
+        {
+            throw std::runtime_error(
+                "tifo::metrics::distance::ImageDistance - set_image_crop_grid "
+                "- the crop grid must contain positive integers.");
+        }
+        if (std::get<0>(crop_grid) >= std::get<2>(crop_grid)
+            || std::get<1>(crop_grid) >= std::get<3>(crop_grid))
+        {
+            throw std::runtime_error(
+                "tifo::metrics::distance::ImageDistance - set_image_crop_grid "
+                "- the crop grid has min coordinates >= max coordinates along "
+                "an axis");
+        }
+        image::Image* image_to_check = nullptr;
+        if (image_index == 0)
+        {
+            crop_grid1_ = crop_grid;
+            image_to_check = input_images_.first;
+        }
+        else
+        {
+            crop_grid2_ = crop_grid;
+            image_to_check = input_images_.second;
+        }
+        if (std::get<2>(crop_grid) > image_to_check->get_width()
+            || std::get<3>(crop_grid) > image_to_check->get_height())
+        {
+            throw std::runtime_error(
+                "tifo::metrics::distance::ImageDistance - set_image_crop_grid "
+                "- the crop grid must contain inbounds coordinates.");
+        }
     }
 
     void ImageDistance::free_images()
@@ -47,19 +98,40 @@ namespace tifo::metrics::distance
                 "tifo::metrics::distance::ImageDistance - compute_distance - "
                 "set input images before computing distances.");
         }
-        double sum_distance = 0;
-        for (int y = 0; y < input_images_.first->get_height(); y++)
+        // check crop grid sizes are the same
+        if (std::get<2>(crop_grid1_) - std::get<0>(crop_grid1_)
+            != std::get<2>(crop_grid2_) - std::get<0>(crop_grid2_))
         {
-            for (int x = 0; x < input_images_.first->get_width(); x++)
+            throw std::runtime_error(
+                "tifo::metrics::distance::ImageDistance - compute_distance - "
+                "both crop grids must have same size along axis x.");
+        }
+        if (std::get<3>(crop_grid1_) - std::get<1>(crop_grid1_)
+            != std::get<3>(crop_grid2_) - std::get<1>(crop_grid2_))
+        {
+            throw std::runtime_error(
+                "tifo::metrics::distance::ImageDistance - compute_distance - "
+                "both crop grids must have same size along axis y.");
+        }
+        int crop_grid_size_x =
+            std::get<2>(crop_grid1_) - std::get<0>(crop_grid1_);
+        int crop_grid_size_y =
+            std::get<3>(crop_grid1_) - std::get<1>(crop_grid1_);
+        double sum_distance = 0;
+        for (int dy = 0; dy < crop_grid_size_y; dy++)
+        {
+            for (int dx = 0; dx < crop_grid_size_x; dx++)
             {
                 const std::vector<float>& input_pixel1 =
                     input_images_.first
-                        ->get_pixels()[y * input_images_.first->get_width()
-                                       + x];
+                        ->get_pixels()[(dy + std::get<1>(crop_grid1_))
+                                           * input_images_.first->get_width()
+                                       + dx + std::get<0>(crop_grid2_)];
                 const std::vector<float>& input_pixel2 =
                     input_images_.second
-                        ->get_pixels()[y * input_images_.first->get_width()
-                                       + x];
+                        ->get_pixels()[(dy + std::get<1>(crop_grid2_))
+                                           * input_images_.second->get_width()
+                                       + dx + std::get<0>(crop_grid2_)];
                 sum_distance += get_distance_between_rgb_pixels(
                     { input_pixel1[0], input_pixel1[1], input_pixel1[2] },
                     { input_pixel2[0], input_pixel2[1], input_pixel2[2] });

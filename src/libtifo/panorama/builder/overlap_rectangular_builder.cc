@@ -38,8 +38,7 @@ namespace tifo::panorama::builder
          * calculate the overlap for images at position (0, 0) and (0, 1) on one
          * hand and (0, 0) and (1, 0) on the other hand
          */
-        int horizontal_overlap_size = 0;
-        int vertical_overlap_size = 0;
+        return nullptr;
     }
 
 } // namespace tifo::panorama::builder
