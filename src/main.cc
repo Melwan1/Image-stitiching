@@ -6,13 +6,13 @@
 int main()
 {
     tifo::image::PPMImage* image = new tifo::image::PPMImage();
-    image->read("tests/julie.ppm");
+    image->read("tests/julie2.ppm");
     tifo::panorama::cutter::OverlapRectangularCutter cutter;
     cutter.set_input_image(image);
     cutter.set_horizontal_slices(2)
-        .set_vertical_slices(3)
-        .set_horizontal_overlap_size(20)
-        .set_vertical_overlap_size(10);
+        .set_vertical_slices(2)
+        .set_horizontal_overlap_size(10)
+        .set_vertical_overlap_size(20);
     std::vector<tifo::image::Image*> cut_images = cutter.cut();
     cutter.free_input();
     int index = 1;

@@ -79,6 +79,7 @@ namespace tifo::image
                 ofs.write(&value, 1);
             }
         }
+        ofs.close();
     }
 
 } // namespace tifo::image

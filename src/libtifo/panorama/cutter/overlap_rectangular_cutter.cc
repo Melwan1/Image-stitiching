@@ -83,11 +83,11 @@ namespace tifo::panorama::cutter
                 "cannot be bigger than the size of the cut image");
         }
 
-        for (int horizontal_index = 0; horizontal_index < horizontal_slices_;
-             horizontal_index++)
+        for (int vertical_index = 0; vertical_index < vertical_slices_;
+             vertical_index++)
         {
-            for (int vertical_index = 0; vertical_index < vertical_slices_;
-                 vertical_index++)
+            for (int horizontal_index = 0;
+                 horizontal_index < horizontal_slices_; horizontal_index++)
             {
                 int x_min =
                     std::clamp(input_image_->get_width() * horizontal_index
