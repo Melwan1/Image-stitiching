@@ -1,3 +1,4 @@
+#include <images/ppm-image.hh>
 #include <iostream>
 #include <metrics/distance/image_distance.hh>
 #include <panorama/builder/overlap_rectangular_builder.hh>
@@ -41,25 +42,9 @@ namespace tifo::panorama::builder
          * hand and (0, 0) and (1, 0) on the other hand
          */
 
-        // Compute between (0, 0) and (1, 0)
-        for (const auto image : input_images_)
-        {
-            std::cout << "OverlapRectangularBuilder - image size : "
-                      << image->get_width() << " x " << image->get_height()
-                      << "\n";
-        }
         image::Image* image_0_0 = input_images_[0];
         image::Image* image_1_0 = input_images_[1];
         image::Image* image_0_1 = input_images_[horizontal_slices_];
-        image_0_0->write("image00.ppm");
-        image_1_0->write("image10.ppm");
-        image_0_1->write("image01.ppm");
-        std::cout << "OverlapRectangularBuilder - image (0, 0) size : "
-                  << image_0_0->get_width() << " x " << image_0_0->get_height()
-                  << "\n";
-        std::cout << "OverlapRectangularBuilder - image (1, 0) size : "
-                  << image_1_0->get_width() << " x " << image_1_0->get_height()
-                  << "\n";
         double min_distance_x;
         int overlap_x = 0;
         for (int candidate_overlap_x = 1; candidate_overlap_x
@@ -69,26 +54,18 @@ namespace tifo::panorama::builder
             metrics::distance::ImageDistance image_distance;
             image_distance.set_input_images({ image_0_0, image_1_0 });
             image_distance.set_image_crop_grid(
-                { image_0_0->get_width() - candidate_overlap_x - 1, 0,
+                { image_0_0->get_width() - candidate_overlap_x, 0,
                   image_0_0->get_width(), image_0_0->get_height() },
                 0);
             image_distance.set_image_crop_grid(
-                { 0, 0, candidate_overlap_x + 1, image_1_0->get_height() }, 1);
+                { 0, 0, candidate_overlap_x, image_1_0->get_height() }, 1);
             double lab_distance = image_distance.compute_distance();
-            std::cout << "lab distance for overlap x = " << candidate_overlap_x
-                      << " is " << lab_distance << "\n";
             if (overlap_x == 0 || lab_distance < min_distance_x)
             {
                 min_distance_x = lab_distance;
                 overlap_x = candidate_overlap_x;
             }
         }
-        std::cout << "OverlapRectangularBuilder - image (0, 0) size : "
-                  << image_0_0->get_width() << " x " << image_0_0->get_height()
-                  << "\n";
-        std::cout << "OverlapRectangularBuilder - image (0, 1) size : "
-                  << image_0_1->get_width() << " x " << image_0_1->get_height()
-                  << "\n";
         double min_distance_y;
         int overlap_y = 0;
         for (int candidate_overlap_y = 1; candidate_overlap_y
@@ -98,14 +75,12 @@ namespace tifo::panorama::builder
             metrics::distance::ImageDistance image_distance;
             image_distance.set_input_images({ image_0_0, image_0_1 });
             image_distance.set_image_crop_grid(
-                { 0, image_0_0->get_height() - candidate_overlap_y - 1,
+                { 0, image_0_0->get_height() - candidate_overlap_y,
                   image_0_0->get_width(), image_0_0->get_height() },
                 0);
             image_distance.set_image_crop_grid(
-                { 0, 0, image_0_1->get_width(), candidate_overlap_y + 1 }, 1);
+                { 0, 0, image_0_1->get_width(), candidate_overlap_y }, 1);
             double lab_distance = image_distance.compute_distance();
-            std::cout << "lab distance for overlap y = " << candidate_overlap_y
-                      << " is " << lab_distance << "\n";
             if (overlap_y == 0 || lab_distance < min_distance_y)
             {
                 min_distance_y = lab_distance;
@@ -116,7 +91,57 @@ namespace tifo::panorama::builder
         std::cout << "Overlap x = " << overlap_x << "\n";
         std::cout << "Overlap y = " << overlap_y << "\n";
 
-        return nullptr;
+        int total_width = 0;
+        for (int horizontal_slice = 0; horizontal_slice < horizontal_slices_;
+             horizontal_slice++)
+        {
+            total_width += input_images_[horizontal_slice]->get_width();
+        }
+        total_width -= (horizontal_slices_ - 1) * overlap_x;
+        int total_height = 0;
+        for (int vertical_slice = 0; vertical_slice < vertical_slices_;
+             vertical_slice++)
+        {
+            total_height += input_images_[horizontal_slices_ * vertical_slice]
+                                ->get_height();
+        }
+        total_height -= (vertical_slices_ - 1) * overlap_y;
+        image::PPMImage* result =
+            new image::PPMImage(total_width, total_height);
+
+        for (int y = 0; y < result->get_height(); y++)
+        {
+            for (int x = 0; x < result->get_width(); x++)
+            {
+                // assume all images are of the same size
+                int input_index_x = std::min(
+                    x / (input_images_[0]->get_width() - overlap_x / 2),
+                    horizontal_slices_ - 1);
+                int input_index_y = std::min(
+                    y / (input_images_[0]->get_height() - overlap_y / 2),
+                    vertical_slices_ - 1);
+                int dx = x
+                    - input_index_x
+                        * (input_images_[0]->get_width() - overlap_x / 2);
+                int dy = y
+                    - input_index_y
+                        * (input_images_[0]->get_height() - overlap_y / 2);
+
+                for (int color_index = 0; color_index < 3; color_index++)
+                {
+                    image::Image* retrieved_image =
+                        input_images_[input_index_y * horizontal_slices_
+                                      + input_index_x];
+                    result->get_pixels()[y * result->get_width() + x]
+                                        [color_index] =
+                        retrieved_image
+                            ->get_pixels()[dy * retrieved_image->get_width()
+                                           + dx][color_index];
+                }
+            }
+        }
+
+        return result;
     }
 
 } // namespace tifo::panorama::builder

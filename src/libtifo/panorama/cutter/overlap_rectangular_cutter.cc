@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <images/ppm-image.hh>
 #include <iostream>
 #include <panorama/cutter/overlap_rectangular_cutter.hh>

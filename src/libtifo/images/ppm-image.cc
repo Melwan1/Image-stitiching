@@ -7,6 +7,10 @@
 namespace tifo::image
 {
 
+    PPMImage::PPMImage(int width, int height)
+        : Image(width, height)
+    {}
+
     void PPMImage::read(const fs::path& src_path)
     {
         if (src_path.extension() != ".ppm")

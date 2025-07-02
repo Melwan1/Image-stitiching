@@ -11,8 +11,8 @@ int main()
     cutter.set_input_image(image);
     cutter.set_horizontal_slices(2)
         .set_vertical_slices(2)
-        .set_horizontal_overlap_size(10)
-        .set_vertical_overlap_size(20);
+        .set_horizontal_overlap_size(7)
+        .set_vertical_overlap_size(7);
     std::vector<tifo::image::Image*> cut_images = cutter.cut();
     cutter.free_input();
     int index = 1;
@@ -25,9 +25,9 @@ int main()
 
     tifo::panorama::builder::OverlapRectangularBuilder builder;
     builder.set_input_images(cut_images);
-    builder.set_horizontal_slices(2).set_vertical_slices(3);
+    builder.set_horizontal_slices(2).set_vertical_slices(2);
     tifo::image::Image* built_image = builder.build();
-    (void)built_image;
+    built_image->write("tests/result.ppm");
 
     /*tifo::panorama::builder::CleanRectangularBuilder builder;
     builder.set_input_images(cut_images);

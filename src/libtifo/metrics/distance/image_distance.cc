@@ -1,3 +1,4 @@
+#include <cmath>
 #include <iostream>
 #include <metrics/convert/color_converter.hh>
 #include <metrics/distance/image_distance.hh>
@@ -90,14 +91,6 @@ namespace tifo::metrics::distance
         if (std::get<2>(crop_grid1_) - std::get<0>(crop_grid1_)
             != std::get<2>(crop_grid2_) - std::get<0>(crop_grid2_))
         {
-            std::cout << "crop grid 1: from (" << std::get<0>(crop_grid1_)
-                      << ", " << std::get<1>(crop_grid1_) << ") to ("
-                      << std::get<2>(crop_grid1_) << ", "
-                      << std::get<3>(crop_grid1_) << ")\n";
-            std::cout << "crop grid 2: from (" << std::get<0>(crop_grid2_)
-                      << ", " << std::get<1>(crop_grid2_) << ") to ("
-                      << std::get<2>(crop_grid2_) << ", "
-                      << std::get<3>(crop_grid2_) << ")\n";
             throw std::runtime_error(
                 "tifo::metrics::distance::ImageDistance - compute_distance - "
                 "both crop grids must have same size along axis x.");

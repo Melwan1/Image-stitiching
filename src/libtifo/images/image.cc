@@ -12,6 +12,18 @@ namespace tifo::image
         , width_(0)
     {}
 
+    Image::Image(int width, int height)
+        : pixels_()
+        , height_(height)
+        , width_(width)
+    {
+        pixels_.resize(width * height);
+        for (int index = 0; index < width * height; index++)
+        {
+            pixels_[index].resize(3);
+        }
+    }
+
     const Image::container_type& Image::get_pixels() const
     {
         return pixels_;

@@ -14,6 +14,7 @@ namespace tifo::image
 
     public:
         Image();
+        Image(int width, int height);
         virtual ~Image() = default;
         virtual void read(const fs::path& src_path) = 0;
 
