@@ -32,23 +32,18 @@ namespace tifo::panorama::builder
         return *this;
     }
 
-    image::Image* OverlapRectangularBuilder::build()
+    int OverlapRectangularBuilder::get_overlap_x()
     {
-        /** for now we will consider that the images are well placed with
-         * respect to each other. We therefore just need to compute the overlap
-         * size and glue the images back together. For simplicity, we will also
-         * consider that the overlap is constant among the images, so we only
-         * calculate the overlap for images at position (0, 0) and (0, 1) on one
-         * hand and (0, 0) and (1, 0) on the other hand
-         */
-
+        if (horizontal_slices_ == 1)
+        {
+            return 0;
+        }
         image::Image* image_0_0 = input_images_[0];
         image::Image* image_1_0 = input_images_[1];
-        image::Image* image_0_1 = input_images_[horizontal_slices_];
         double min_distance_x;
         int overlap_x = 0;
         for (int candidate_overlap_x = 1; candidate_overlap_x
-             < std::min(image_0_0->get_width(), image_0_1->get_width());
+             < std::min(image_0_0->get_width(), image_1_0->get_width());
              candidate_overlap_x++)
         {
             metrics::distance::ImageDistance image_distance;
@@ -66,20 +61,33 @@ namespace tifo::panorama::builder
                 overlap_x = candidate_overlap_x;
             }
         }
+        return overlap_x;
+    }
+
+    int OverlapRectangularBuilder::get_overlap_y()
+    {
+        if (vertical_slices_ == 1)
+        {
+            return 0;
+        }
+        image::Image* image_0_0 = input_images_[0];
+        image::Image* image_0_1 = input_images_[horizontal_slices_];
         double min_distance_y;
         int overlap_y = 0;
         for (int candidate_overlap_y = 1; candidate_overlap_y
-             < std::min(image_0_0->get_height(), image_1_0->get_height());
+             < std::min(image_0_0->get_height(), image_0_1->get_height());
              candidate_overlap_y++)
         {
             metrics::distance::ImageDistance image_distance;
             image_distance.set_input_images({ image_0_0, image_0_1 });
             image_distance.set_image_crop_grid(
-                { 0, image_0_0->get_height() - candidate_overlap_y,
+                { image_0_0->get_height() - candidate_overlap_y, 0,
                   image_0_0->get_width(), image_0_0->get_height() },
                 0);
             image_distance.set_image_crop_grid(
                 { 0, 0, image_0_1->get_width(), candidate_overlap_y }, 1);
+            std::cout << "image 0 0: " << image_0_0->get_width() << "x"
+                      << image_0_1->get_height();
             double lab_distance = image_distance.compute_distance();
             if (overlap_y == 0 || lab_distance < min_distance_y)
             {
@@ -87,6 +95,21 @@ namespace tifo::panorama::builder
                 overlap_y = candidate_overlap_y;
             }
         }
+        return overlap_y;
+    }
+
+    image::Image* OverlapRectangularBuilder::build()
+    {
+        /** for now we will consider that the images are well placed with
+         * respect to each other. We therefore just need to compute the overlap
+         * size and glue the images back together. For simplicity, we will also
+         * consider that the overlap is constant among the images, so we only
+         * calculate the overlap for images at position (0, 0) and (0, 1) on one
+         * hand and (0, 0) and (1, 0) on the other hand
+         */
+
+        int overlap_x = get_overlap_x();
+        int overlap_y = get_overlap_y();
 
         std::cout << "Overlap x = " << overlap_x << "\n";
         std::cout << "Overlap y = " << overlap_y << "\n";

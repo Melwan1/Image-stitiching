@@ -12,6 +12,8 @@ namespace tifo::panorama::builder
         OverlapRectangularBuilder& set_vertical_slices(int vertical_slices);
         // the overlap is not known
 
+        int get_overlap_x();
+        int get_overlap_y();
         image::Image* build() override;
 
     private:
