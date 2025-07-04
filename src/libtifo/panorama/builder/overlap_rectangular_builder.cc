@@ -60,6 +60,10 @@ namespace tifo::panorama::builder
                 min_distance_x = lab_distance;
                 overlap_x = candidate_overlap_x;
             }
+            if (lab_distance < std::numeric_limits<double>::epsilon())
+            {
+                break;
+            }
         }
         return overlap_x;
     }
@@ -92,6 +96,10 @@ namespace tifo::panorama::builder
             {
                 min_distance_y = lab_distance;
                 overlap_y = candidate_overlap_y;
+            }
+            if (lab_distance < std::numeric_limits<double>::epsilon())
+            {
+                break;
             }
         }
         return overlap_y;

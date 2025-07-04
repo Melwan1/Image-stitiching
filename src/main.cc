@@ -12,21 +12,21 @@ int main()
     tifo::panorama::cutter::OverlapRectangularCutter cutter;
     cutter.set_input_image(image);
     cutter.set_horizontal_slices(2)
-        .set_vertical_slices(6)
+        .set_vertical_slices(2)
         .set_horizontal_overlap_size(10)
-        .set_vertical_overlap_size(20);
+        .set_vertical_overlap_size(10);
     std::vector<tifo::image::Image*> cut_images = cutter.cut();
     int index = 1;
     for (const auto cut_image : cut_images)
     {
         std::ostringstream oss;
-        oss << "tests/cut_julie_" << index++ << ".ppm";
+        oss << "tests/cut_temporary_lab_" << index++ << ".ppm";
         cut_image->write(oss.str());
     }
 
     tifo::panorama::builder::OverlapRectangularBuilder builder;
     builder.set_input_images(cut_images);
-    builder.set_horizontal_slices(2).set_vertical_slices(6);
+    builder.set_horizontal_slices(2).set_vertical_slices(2);
     tifo::image::Image* built_image = builder.build();
     built_image->write("tests/result.ppm");
 
