@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <ostream>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -14,6 +15,7 @@ namespace tifo::image
 
     public:
         Image();
+        Image(int width, int height);
         virtual ~Image() = default;
         virtual void read(const fs::path& src_path) = 0;
 
@@ -25,11 +27,8 @@ namespace tifo::image
         int get_height() const;
         int get_width() const;
 
-        std::vector<Image*> rectangular_cut(int horizontal_slices,
-                                            int vertical_slices) const;
-        static Image* rebuild_from_cuts(const std::vector<Image*>& cuts,
-                                        int horizontal_slices,
-                                        int vertical_slices);
+        void set_height(int height);
+        void set_width(int width);
 
     protected:
         container_type pixels_;
@@ -38,3 +37,5 @@ namespace tifo::image
     };
 
 } // namespace tifo::image
+
+std::ostream& operator<<(std::ostream& ostr, const tifo::image::Image* image);

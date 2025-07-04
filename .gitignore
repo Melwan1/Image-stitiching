@@ -3,3 +3,5 @@ build/**
 ## IDEs
 .vscode/**
 .idea/**
+tests/cut_*.ppm
+tests/result*
