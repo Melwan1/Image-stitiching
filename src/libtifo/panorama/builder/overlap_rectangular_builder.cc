@@ -126,6 +126,14 @@ namespace tifo::panorama::builder
                 int dy = y
                     - input_index_y
                         * (input_images_[0]->get_height() - overlap_y / 2);
+                if (input_index_x > 0)
+                {
+                    dx += overlap_x / 2;
+                }
+                if (input_index_y > 0)
+                {
+                    dy += overlap_y / 2;
+                }
 
                 for (int color_index = 0; color_index < 3; color_index++)
                 {

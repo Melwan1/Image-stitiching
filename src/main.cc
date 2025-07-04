@@ -9,10 +9,10 @@ int main()
     image->read("tests/julie2.ppm");
     tifo::panorama::cutter::OverlapRectangularCutter cutter;
     cutter.set_input_image(image);
-    cutter.set_horizontal_slices(2)
-        .set_vertical_slices(2)
-        .set_horizontal_overlap_size(7)
-        .set_vertical_overlap_size(7);
+    cutter.set_horizontal_slices(3)
+        .set_vertical_slices(6)
+        .set_horizontal_overlap_size(15)
+        .set_vertical_overlap_size(15);
     std::vector<tifo::image::Image*> cut_images = cutter.cut();
     cutter.free_input();
     int index = 1;
@@ -25,7 +25,7 @@ int main()
 
     tifo::panorama::builder::OverlapRectangularBuilder builder;
     builder.set_input_images(cut_images);
-    builder.set_horizontal_slices(2).set_vertical_slices(2);
+    builder.set_horizontal_slices(3).set_vertical_slices(6);
     tifo::image::Image* built_image = builder.build();
     built_image->write("tests/result.ppm");
 
