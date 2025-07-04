@@ -30,8 +30,6 @@ namespace tifo::image
         void set_height(int height);
         void set_width(int width);
 
-        friend std::ostream& operator<<(std::ostream& ostr, const Image* image);
-
     protected:
         container_type pixels_;
         int height_;
@@ -39,3 +37,5 @@ namespace tifo::image
     };
 
 } // namespace tifo::image
+
+std::ostream& operator<<(std::ostream& ostr, const tifo::image::Image* image);

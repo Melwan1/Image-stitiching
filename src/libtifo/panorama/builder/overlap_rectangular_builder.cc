@@ -78,6 +78,7 @@ namespace tifo::panorama::builder
              < std::min(image_0_0->get_height(), image_0_1->get_height());
              candidate_overlap_y++)
         {
+            std::cout << image_0_0 << "\n" << image_0_1 << "\n";
             metrics::distance::ImageDistance image_distance;
             image_distance.set_input_images({ image_0_0, image_0_1 });
             image_distance.set_image_crop_grid(
