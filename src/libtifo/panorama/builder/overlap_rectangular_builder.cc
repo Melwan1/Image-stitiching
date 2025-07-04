@@ -82,13 +82,11 @@ namespace tifo::panorama::builder
             metrics::distance::ImageDistance image_distance;
             image_distance.set_input_images({ image_0_0, image_0_1 });
             image_distance.set_image_crop_grid(
-                { image_0_0->get_height() - candidate_overlap_y, 0,
+                { 0, image_0_0->get_height() - candidate_overlap_y,
                   image_0_0->get_width(), image_0_0->get_height() },
                 0);
             image_distance.set_image_crop_grid(
                 { 0, 0, image_0_1->get_width(), candidate_overlap_y }, 1);
-            std::cout << "image 0 0: " << image_0_0->get_width() << "x"
-                      << image_0_1->get_height();
             double lab_distance = image_distance.compute_distance();
             if (overlap_y == 0 || lab_distance < min_distance_y)
             {
