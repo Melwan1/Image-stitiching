@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <ostream>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -28,6 +29,8 @@ namespace tifo::image
 
         void set_height(int height);
         void set_width(int width);
+
+        friend std::ostream& operator<<(std::ostream& ostr, const Image* image);
 
     protected:
         container_type pixels_;

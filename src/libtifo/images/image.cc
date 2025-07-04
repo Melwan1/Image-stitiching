@@ -65,3 +65,14 @@ namespace tifo::image
     }
 
 } // namespace tifo::image
+
+std::ostream& operator<<(std::ostream& ostr, const tifo::image::Image* image)
+{
+    if (!image)
+    {
+        return ostr << "image (null)";
+    }
+    return ostr << "image of size " << image->get_width() << "x"
+                << image->get_height() << " with " << image->get_pixels().size()
+                << " pixels";
+}
