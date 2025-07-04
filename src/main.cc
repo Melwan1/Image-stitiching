@@ -4,9 +4,14 @@
 #include <panorama/builder/overlap_rectangular_builder.hh>
 #include <panorama/cutter/overlap_rectangular_cutter.hh>
 #include <sstream>
+#include <yaml-cpp/yaml.h>
 
 int main()
 {
+    YAML::Node node = YAML::LoadFile("config.yaml");
+    YAML::Emitter emitter;
+    emitter << node;
+    std::cout << emitter.c_str();
     tifo::image::PPMImage* image = new tifo::image::PPMImage();
     image->read("tests/julie2.ppm");
     tifo::panorama::cutter::OverlapRectangularCutter cutter;

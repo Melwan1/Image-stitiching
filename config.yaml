@@ -1,0 +1,32 @@
+current_directory: tests
+
+pipeline:
+
+  - algorithm: overlap-rectangular-cutter
+
+    input:
+
+      image:
+        type: ppm
+        filename: julie
+
+      parameters:
+        horizontal_slices: 2
+        vertical_slices: 2
+        horizontal_overlap_size: 10
+        vertical_overlap_size: 10
+
+    output:
+      file_prefix: cut_julie_
+
+  - algorithm: overlap-rectangular-builder
+
+    input:
+
+      parameters:
+        horizontal_slices: 2
+        vertical_slices: 2
+
+    output:
+      filename: result
+  
