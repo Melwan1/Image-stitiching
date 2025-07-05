@@ -1,6 +1,8 @@
 #include <images/color-image.hh>
 #include <images/grayscale-ppm-image.hh>
 
+#include <iostream>
+
 namespace tifo::image
 {
 
