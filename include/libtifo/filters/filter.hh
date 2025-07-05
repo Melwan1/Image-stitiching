@@ -1,6 +1,6 @@
 #pragma once
 
-#include <images/image.hh>
+#include <images/grayscale-image.hh>
 #include <math/matrix.hh>
 
 namespace tifo::filter
@@ -11,7 +11,9 @@ namespace tifo::filter
     {
     public:
         Filter(const math::SquaredMatrix<ElementType, size>& matrix);
-        virtual image::Image* apply_on_image(const image::Image* input_image);
+        virtual image::GrayscaleImage*
+        apply_on_image(const image::GrayscaleImage* input_image);
+        const math::SquaredMatrix<ElementType, size> get_matrix() const;
 
     protected:
         math::SquaredMatrix<ElementType, size> matrix_;
