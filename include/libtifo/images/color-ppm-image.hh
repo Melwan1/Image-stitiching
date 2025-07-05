@@ -1,15 +1,16 @@
 #pragma once
 
 #include <images/image.hh>
+#include <images/color-image.hh>
 
 namespace tifo::image
 {
 
-    class PPMImage : public Image
+    class ColorPPMImage : public ColorImage
     {
     public:
-        PPMImage() = default;
-        PPMImage(int width, int height);
+        ColorPPMImage() = default;
+        ColorPPMImage(int width, int height);
 
         virtual void read(const fs::path& src_path) override;
         virtual void write(const fs::path& dst_path) const override;
