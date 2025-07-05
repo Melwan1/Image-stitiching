@@ -1,4 +1,5 @@
 #include <images/color-image.hh>
+#include <images/grayscale-ppm-image.hh>
 
 namespace tifo::image
 {
@@ -27,6 +28,26 @@ namespace tifo::image
     ColorImage::container_type& ColorImage::get_pixels()
     {
         return pixels_;
+    }
+
+    GrayscaleImage* ColorImage::to_grayscale() const
+    {
+        GrayscalePPMImage* result_image =
+            new GrayscalePPMImage(width_, height_);
+        for (int y = 0; y < height_; y++)
+        {
+            for (int x = 0; x < width_; x++)
+            {
+                int pixel_index = y * width_ + x;
+                float sum = 0;
+                for (int channel_index = 0; channel_index < 3; channel_index++)
+                {
+                    sum += get_pixels()[y * width_ + x][channel_index];
+                }
+                result_image->get_pixels()[y * width_ + x] = sum / 3;
+            }
+        }
+        return result_image;
     }
 
 } // namespace tifo::image
