@@ -11,9 +11,9 @@ namespace tifo::filter
     {
     public:
         Filter(const math::SquaredMatrix<ElementType, size>& matrix);
-        image::Image* apply_on_image(const image::Image* input_image);
+        virtual image::Image* apply_on_image(const image::Image* input_image);
 
-    private:
+    protected:
         math::SquaredMatrix<ElementType, size> matrix_;
     };
 

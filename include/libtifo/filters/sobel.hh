@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bidirectional-filter.hh"
 #include "filter.hh"
 
 namespace tifo::filter
@@ -15,6 +16,12 @@ namespace tifo::filter
     {
     public:
         SobelY();
+    };
+
+    class Sobel : public BidirectionalFilter<int, 3>
+    {
+    public:
+        Sobel();
     };
 
 } // namespace tifo::filter
