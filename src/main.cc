@@ -6,9 +6,5 @@ int main()
 {
     tifo::config::ConfigLauncher config_launcher("config.yaml");
 
-    tifo::image::ColorPPMImage color_image;
-    color_image.read("./tests/julie2.ppm");
-    color_image.to_grayscale()->write("grayscale.ppm");
-
     return 0;
 }
