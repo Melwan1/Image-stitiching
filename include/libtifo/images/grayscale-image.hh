@@ -17,6 +17,8 @@ namespace tifo::image
         const container_type& get_pixels() const;
         container_type& get_pixels();
 
+        GrayscaleImage* downsample(int factor) const;
+
     protected:
         container_type pixels_;
     };
