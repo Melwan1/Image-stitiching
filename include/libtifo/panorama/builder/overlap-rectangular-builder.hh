@@ -14,7 +14,7 @@ namespace tifo::panorama::builder
 
         int get_overlap_x();
         int get_overlap_y();
-        image::Image* build() override;
+        image::ColorImage* build() override;
 
     private:
         int horizontal_slices_;

@@ -3,8 +3,8 @@
 namespace tifo::panorama::builder
 {
 
-    void
-    Builder::set_input_images(const std::vector<image::Image*>& input_images)
+    void Builder::set_input_images(
+        const std::vector<image::ColorImage*>& input_images)
     {
         input_images_ = input_images;
     }

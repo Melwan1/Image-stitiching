@@ -3,7 +3,7 @@
 namespace tifo::panorama::cutter
 {
 
-    void Cutter::set_input_image(image::Image* input_image)
+    void Cutter::set_input_image(image::ColorImage* input_image)
     {
         if (!input_image)
         {

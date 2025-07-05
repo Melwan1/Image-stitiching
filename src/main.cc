@@ -1,11 +1,6 @@
-#include <config/config_launcher.hh>
-#include <images/ppm-image.hh>
-#include <iostream>
-#include <metrics/distance/image_distance.hh>
-#include <panorama/builder/overlap_rectangular_builder.hh>
-#include <panorama/cutter/overlap_rectangular_cutter.hh>
-#include <sstream>
-#include <yaml-cpp/yaml.h>
+#include <config/config-launcher.hh>
+#include <images/color-ppm-image.hh>
+#include <images/grayscale-ppm-image.hh>
 
 int main()
 {

@@ -1,8 +1,8 @@
-#include <config/function_timer.hh>
-#include <images/ppm-image.hh>
+#include <config/function-timer.hh>
+#include <images/color-ppm-image.hh>
 #include <iostream>
-#include <metrics/distance/image_distance.hh>
-#include <panorama/builder/overlap_rectangular_builder.hh>
+#include <metrics/distance/color-image-distance.hh>
+#include <panorama/builder/overlap-rectangular-builder.hh>
 
 namespace tifo::panorama::builder
 {
@@ -42,15 +42,15 @@ namespace tifo::panorama::builder
         {
             return 0;
         }
-        image::Image* image_0_0 = input_images_[0];
-        image::Image* image_1_0 = input_images_[1];
+        image::ColorImage* image_0_0 = input_images_[0];
+        image::ColorImage* image_1_0 = input_images_[1];
         double min_distance_x;
         int overlap_x = 0;
         for (int candidate_overlap_x = 1; candidate_overlap_x
              < std::min(image_0_0->get_width(), image_1_0->get_width());
              candidate_overlap_x++)
         {
-            metrics::distance::ImageDistance image_distance;
+            metrics::distance::ColorImageDistance image_distance;
             image_distance.set_input_images({ image_0_0, image_1_0 });
             image_distance.set_image_crop_grid(
                 { image_0_0->get_width() - candidate_overlap_x, 0,
@@ -81,15 +81,15 @@ namespace tifo::panorama::builder
         {
             return 0;
         }
-        image::Image* image_0_0 = input_images_[0];
-        image::Image* image_0_1 = input_images_[horizontal_slices_];
+        image::ColorImage* image_0_0 = input_images_[0];
+        image::ColorImage* image_0_1 = input_images_[horizontal_slices_];
         double min_distance_y;
         int overlap_y = 0;
         for (int candidate_overlap_y = 1; candidate_overlap_y
              < std::min(image_0_0->get_height(), image_0_1->get_height());
              candidate_overlap_y++)
         {
-            metrics::distance::ImageDistance image_distance;
+            metrics::distance::ColorImageDistance image_distance;
             image_distance.set_input_images({ image_0_0, image_0_1 });
             image_distance.set_image_crop_grid(
                 { 0, image_0_0->get_height() - candidate_overlap_y,
@@ -111,7 +111,7 @@ namespace tifo::panorama::builder
         return overlap_y;
     }
 
-    image::Image* OverlapRectangularBuilder::build()
+    image::ColorImage* OverlapRectangularBuilder::build()
     {
         /** for now we will consider that the images are well placed with
          * respect to each other. We therefore just need to compute the overlap
@@ -144,8 +144,8 @@ namespace tifo::panorama::builder
                                 ->get_height();
         }
         total_height -= (vertical_slices_ - 1) * overlap_y;
-        image::PPMImage* result =
-            new image::PPMImage(total_width, total_height);
+        image::ColorPPMImage* result =
+            new image::ColorPPMImage(total_width, total_height);
 
         for (int y = 0; y < result->get_height(); y++)
         {
@@ -175,7 +175,7 @@ namespace tifo::panorama::builder
 
                 for (int color_index = 0; color_index < 3; color_index++)
                 {
-                    image::Image* retrieved_image =
+                    image::ColorImage* retrieved_image =
                         input_images_[input_index_y * horizontal_slices_
                                       + input_index_x];
                     result->get_pixels()[y * result->get_width() + x]

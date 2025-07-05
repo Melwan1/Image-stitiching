@@ -1,5 +1,4 @@
 #include <images/image.hh>
-#include <images/ppm-image.hh>
 #include <iostream>
 #include <sstream>
 
@@ -7,32 +6,14 @@ namespace tifo::image
 {
 
     Image::Image()
-        : pixels_()
-        , height_(0)
+        : height_(0)
         , width_(0)
     {}
 
     Image::Image(int width, int height)
-        : pixels_()
-        , height_(height)
+        : height_(height)
         , width_(width)
-    {
-        pixels_.resize(width * height);
-        for (int index = 0; index < width * height; index++)
-        {
-            pixels_[index].resize(3);
-        }
-    }
-
-    const Image::container_type& Image::get_pixels() const
-    {
-        return pixels_;
-    }
-
-    Image::container_type& Image::get_pixels()
-    {
-        return pixels_;
-    }
+    {}
 
     int Image::get_height() const
     {
@@ -73,6 +54,5 @@ std::ostream& operator<<(std::ostream& ostr, const tifo::image::Image* image)
         return ostr << "image (null)";
     }
     return ostr << "image of size " << image->get_width() << "x"
-                << image->get_height() << " with " << image->get_pixels().size()
-                << " pixels";
+                << image->get_height();
 }

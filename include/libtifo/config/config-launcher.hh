@@ -1,8 +1,8 @@
 #pragma once
 
+#include <images/color-image.hh>
 #include <string>
 
-#include "images/image.hh"
 #include "yaml-cpp/node/iterator.h"
 
 namespace tifo::config
@@ -25,8 +25,8 @@ namespace tifo::config
         std::string config_path_;
         std::string current_directory_;
 
-        image::Image* initial_image_ = nullptr;
-        std::vector<tifo::image::Image*> pipeline_images_;
+        image::ColorImage* initial_image_ = nullptr;
+        std::vector<tifo::image::ColorImage*> pipeline_images_;
     };
 
 } // namespace tifo::config
