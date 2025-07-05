@@ -1,3 +1,4 @@
+#include <config/config_launcher.hh>
 #include <images/ppm-image.hh>
 #include <iostream>
 #include <metrics/distance/image_distance.hh>
@@ -6,12 +7,9 @@
 #include <sstream>
 #include <yaml-cpp/yaml.h>
 
-#include "libtifo/config/config_launcher.hh"
-
 int main()
 {
-    tifo::panorama::config::ConfigLauncher config_launcher =
-        tifo::panorama::config::ConfigLauncher("config.yaml");
+    tifo::config::ConfigLauncher config_launcher("config.yaml");
 
     return 0;
 }

@@ -1,5 +1,5 @@
-#include "config_launcher.hh"
-
+#include <config/config_launcher.hh>
+#include <config/function_timer.hh>
 #include <iostream>
 
 #include "images/ppm-image.hh"
@@ -9,12 +9,14 @@
 #include "panorama/cutter/overlap_rectangular_cutter.hh"
 #include "yaml-cpp/yaml.h"
 
-namespace tifo::panorama::config
+namespace tifo::config
 {
-
     ConfigLauncher::ConfigLauncher(const std::string& config_path)
         : config_path_(config_path)
     {
+        FunctionTimer function_timer("tifo::config::ConfigLauncher",
+                                     "ConfigLauncher constructor");
+
         YAML::Node node = YAML::LoadFile(config_path);
 
         std::cout << "Loading config file: " << config_path << std::endl;
@@ -44,6 +46,8 @@ namespace tifo::panorama::config
     bool ConfigLauncher::launch_overlap_rectangular_cutter(
         const YAML::Node& pipeline_node)
     {
+        FunctionTimer function_timer("tifo::config::ConfigLauncher",
+                                     "launch_overlap_rectangular_cutter");
         // If no pipeline_images_ are set beforehand in the pipeline
         // we expect an input image
         if (pipeline_images_.empty())
@@ -59,7 +63,7 @@ namespace tifo::panorama::config
             pipeline_node["input"]["parameters"]
                 .as<std::map<std::string, int>>();
 
-        tifo::panorama::cutter::OverlapRectangularCutter cutter;
+        panorama::cutter::OverlapRectangularCutter cutter;
 
         // Set the parameters of the cutter
         cutter.set_horizontal_slices(parameters["horizontal_slices"])
@@ -94,7 +98,7 @@ namespace tifo::panorama::config
                 cut_image->write(oss.str());
 
                 // Put the images in the pipeline
-                new_pipeline_images.push_back(cut_image);
+                new_pipeline_images.emplace_back(cut_image);
             }
         }
 
@@ -121,7 +125,7 @@ namespace tifo::panorama::config
             pipeline_node["input"]["parameters"]
                 .as<std::map<std::string, int>>();
 
-        tifo::panorama::builder::OverlapRectangularBuilder builder;
+        panorama::builder::OverlapRectangularBuilder builder;
 
         // Set the input images to the pipeline images
         builder.set_input_images(pipeline_images_);
@@ -131,7 +135,7 @@ namespace tifo::panorama::config
             .set_vertical_slices(parameters["vertical_slices"]);
 
         // Create the image
-        tifo::image::Image* built_image = builder.build();
+        image::Image* built_image = builder.build();
 
         // Get the file prefix for all the generated images
         const std::string output_filename =
@@ -144,7 +148,7 @@ namespace tifo::panorama::config
                            + output_file_type);
 
         // Metrics and prints
-        tifo::metrics::distance::ImageDistance image_distance;
+        metrics::distance::ImageDistance image_distance;
 
         std::cout << "initial image: " << initial_image_->get_width() << "x"
                   << initial_image_->get_height() << "\n";
@@ -158,7 +162,7 @@ namespace tifo::panorama::config
 
         // Clear the pipeline images and add the result
         pipeline_images_.clear();
-        pipeline_images_.push_back(built_image);
+        pipeline_images_.emplace_back(built_image);
 
         return true;
     }
@@ -175,7 +179,7 @@ namespace tifo::panorama::config
         const std::string input_image_file_path = current_directory_ + "/"
             + input_image_filename + "." + input_image_type;
 
-        tifo::image::Image* image;
+        image::Image* image;
         if (input_image_type == "ppm")
         {
             image = new tifo::image::PPMImage();
@@ -204,7 +208,7 @@ namespace tifo::panorama::config
         }
 
         // Add it the pipeline images
-        pipeline_images_.push_back(image);
+        pipeline_images_.emplace_back(image);
         return true;
     };
 
@@ -224,4 +228,4 @@ namespace tifo::panorama::config
         return true;
     };
 
-} // namespace tifo::panorama::config
+} // namespace tifo::config

@@ -5,7 +5,7 @@
 #include "images/image.hh"
 #include "yaml-cpp/node/iterator.h"
 
-namespace tifo::panorama::config
+namespace tifo::config
 {
 
     class ConfigLauncher
@@ -25,8 +25,8 @@ namespace tifo::panorama::config
         std::string config_path_;
         std::string current_directory_;
 
-        tifo::image::Image* initial_image_ = nullptr;
+        image::Image* initial_image_ = nullptr;
         std::vector<tifo::image::Image*> pipeline_images_;
     };
 
-} // namespace tifo::panorama::config
+} // namespace tifo::config
