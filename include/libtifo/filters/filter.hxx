@@ -1,5 +1,6 @@
 #pragma once
 
+#include <images/ppm-image.hh>
 #include <math/matrix.hh>
 
 #include "filter.hh"
