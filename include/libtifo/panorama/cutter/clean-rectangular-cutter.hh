@@ -11,7 +11,7 @@ namespace tifo::panorama::cutter
         CleanRectangularCutter& set_horizontal_slices(int horizontal_slices);
         CleanRectangularCutter& set_vertical_slices(int vertical_slices);
 
-        std::vector<image::Image*> cut() override;
+        std::vector<image::ColorImage*> cut() override;
 
     private:
         int horizontal_slices_;

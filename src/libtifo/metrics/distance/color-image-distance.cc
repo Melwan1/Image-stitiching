@@ -1,17 +1,17 @@
 #include <cmath>
 #include <iostream>
-#include <metrics/convert/color_converter.hh>
-#include <metrics/distance/image_distance.hh>
+#include <metrics/convert/color-converter.hh>
+#include <metrics/distance/color-image-distance.hh>
 
 namespace tifo::metrics::distance
 {
 
-    ImageDistance::ImageDistance()
+    ColorImageDistance::ColorImageDistance()
         : input_images_({ nullptr, nullptr })
     {}
 
-    void ImageDistance::set_input_images(
-        const std::pair<image::Image*, image::Image*>& input_images)
+    void ColorImageDistance::set_input_images(
+        const std::pair<image::ColorImage*, image::ColorImage*>& input_images)
     {
         if (!input_images.first || !input_images.second)
         {
@@ -28,9 +28,8 @@ namespace tifo::metrics::distance
                             1);
     }
 
-    void
-    ImageDistance::set_image_crop_grid(std::tuple<int, int, int, int> crop_grid,
-                                       int image_index)
+    void ColorImageDistance::set_image_crop_grid(
+        std::tuple<int, int, int, int> crop_grid, int image_index)
     {
         if (image_index < 0 || image_index > 1)
         {
@@ -53,7 +52,7 @@ namespace tifo::metrics::distance
                 "- the crop grid has min coordinates >= max coordinates along "
                 "an axis");
         }
-        image::Image* image_to_check = nullptr;
+        image::ColorImage* image_to_check = nullptr;
         if (image_index == 0)
         {
             crop_grid1_ = crop_grid;
@@ -73,13 +72,13 @@ namespace tifo::metrics::distance
         }
     }
 
-    void ImageDistance::free_images()
+    void ColorImageDistance::free_images()
     {
         delete input_images_.first;
         delete input_images_.second;
     }
 
-    double ImageDistance::compute_distance()
+    double ColorImageDistance::compute_distance()
     {
         if (!input_images_.first || !input_images_.second)
         {
@@ -130,7 +129,7 @@ namespace tifo::metrics::distance
         return sum_distance / (crop_grid_size_x * crop_grid_size_y);
     }
 
-    double ImageDistance::get_distance_between_rgb_pixels(
+    double ColorImageDistance::get_distance_between_rgb_pixels(
         const std::tuple<float, float, float>& pixel1,
         const std::tuple<float, float, float>& pixel2)
     {

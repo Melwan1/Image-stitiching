@@ -1,5 +1,5 @@
 #include <fstream>
-#include <images/ppm-image.hh>
+#include <images/color-ppm-image.hh>
 #include <iostream>
 #include <set>
 #include <stdexcept>
@@ -7,11 +7,11 @@
 namespace tifo::image
 {
 
-    PPMImage::PPMImage(int width, int height)
-        : Image(width, height)
+    ColorPPMImage::ColorPPMImage(int width, int height)
+        : ColorImage(width, height)
     {}
 
-    void PPMImage::read(const fs::path& src_path)
+    void ColorPPMImage::read(const fs::path& src_path)
     {
         if (src_path.extension() != ".ppm")
         {
@@ -57,7 +57,7 @@ namespace tifo::image
         }
     }
 
-    void PPMImage::write(const fs::path& dst_path) const
+    void ColorPPMImage::write(const fs::path& dst_path) const
     {
         if (dst_path.extension() != ".ppm")
         {

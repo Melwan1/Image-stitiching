@@ -14,7 +14,7 @@ namespace tifo::panorama::cutter
         set_horizontal_overlap_size(int horizontal_overlap_size);
         OverlapRectangularCutter&
         set_vertical_overlap_size(int vertical_overlap_size);
-        std::vector<image::Image*> cut() override;
+        std::vector<image::ColorImage*> cut() override;
 
     private:
         int horizontal_slices_;

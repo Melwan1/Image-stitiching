@@ -21,9 +21,6 @@ namespace tifo::image
 
         virtual void write(const fs::path& dst_path) const = 0;
 
-        const container_type& get_pixels() const;
-        container_type& get_pixels();
-
         int get_height() const;
         int get_width() const;
 
@@ -31,7 +28,6 @@ namespace tifo::image
         void set_width(int width);
 
     protected:
-        container_type pixels_;
         int height_;
         int width_;
     };

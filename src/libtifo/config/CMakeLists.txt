@@ -1,4 +1,4 @@
 target_sources(libtifo PUBLIC
-        config_launcher.cc
-        function_timer.cc
+        config-launcher.cc
+        function-timer.cc
 )

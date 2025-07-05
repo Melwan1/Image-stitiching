@@ -1,6 +1,6 @@
 #pragma once
 
-#include <images/image.hh>
+#include <images/color-image.hh>
 
 namespace tifo::panorama::cutter
 {
@@ -9,12 +9,12 @@ namespace tifo::panorama::cutter
     {
     public:
         Cutter() = default;
-        void set_input_image(image::Image* input_image);
-        virtual std::vector<image::Image*> cut() = 0;
+        void set_input_image(image::ColorImage* input_image);
+        virtual std::vector<image::ColorImage*> cut() = 0;
         void free_input();
 
     protected:
-        image::Image* input_image_ = nullptr;
+        image::ColorImage* input_image_ = nullptr;
     };
 
 } // namespace tifo::panorama::cutter
