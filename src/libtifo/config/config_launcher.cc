@@ -110,6 +110,9 @@ namespace tifo::config
     bool ConfigLauncher::launch_overlap_rectangular_builder(
         const YAML::Node& pipeline_node)
     {
+        FunctionTimer function_timer("tifo::config::ConfigLauncher",
+                                     "launch_overlap_rectangular_builder");
+
         // If no pipeline_images_ are set beforehand in the pipeline
         // we expect a list of input images
         if (pipeline_images_.empty())

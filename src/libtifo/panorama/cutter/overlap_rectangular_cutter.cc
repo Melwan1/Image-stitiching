@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <config/function_timer.hh>
 #include <images/ppm-image.hh>
 #include <iostream>
 #include <panorama/cutter/overlap_rectangular_cutter.hh>
@@ -70,6 +71,8 @@ namespace tifo::panorama::cutter
         // horizontal_overlap) If the overlap makes any coordinate out of
         // bounds, it is clamped to the bounds of the initial image.
 
+        config::FunctionTimer function_timer(
+            "tifo::panorama::builder::OverlapRectangularCutter", "cut");
         std::vector<image::Image*> result_images;
 
         // the overlap cannot make an image completely overlap another, so it

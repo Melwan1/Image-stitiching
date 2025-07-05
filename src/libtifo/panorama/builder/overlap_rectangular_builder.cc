@@ -1,3 +1,4 @@
+#include <config/function_timer.hh>
 #include <images/ppm-image.hh>
 #include <iostream>
 #include <metrics/distance/image_distance.hh>
@@ -34,6 +35,9 @@ namespace tifo::panorama::builder
 
     int OverlapRectangularBuilder::get_overlap_x()
     {
+        config::FunctionTimer function_timer(
+            "tifo::panorama::builder::OverlapRectangularBuilder",
+            "get_overlap_x");
         if (horizontal_slices_ == 1)
         {
             return 0;
@@ -70,6 +74,9 @@ namespace tifo::panorama::builder
 
     int OverlapRectangularBuilder::get_overlap_y()
     {
+        config::FunctionTimer function_timer(
+            "tifo::panorama::builder::OverlapRectangularBuilder",
+            "get_overlap_y");
         if (vertical_slices_ == 1)
         {
             return 0;
@@ -82,7 +89,6 @@ namespace tifo::panorama::builder
              < std::min(image_0_0->get_height(), image_0_1->get_height());
              candidate_overlap_y++)
         {
-            std::cout << image_0_0 << "\n" << image_0_1 << "\n";
             metrics::distance::ImageDistance image_distance;
             image_distance.set_input_images({ image_0_0, image_0_1 });
             image_distance.set_image_crop_grid(
@@ -115,6 +121,8 @@ namespace tifo::panorama::builder
          * hand and (0, 0) and (1, 0) on the other hand
          */
 
+        config::FunctionTimer function_timer(
+            "tifo::panorama::builder::OverlapRectangularBuilder", "build");
         int overlap_x = get_overlap_x();
         int overlap_y = get_overlap_y();
 
