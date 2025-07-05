@@ -49,8 +49,8 @@ namespace tifo::image
             pixels_[pixel_index].resize(3);
             for (int color_index = 0; color_index < 3; color_index++)
             {
-                char element;
-                ifs.read(&element, 1);
+                unsigned char element;
+                ifs.read(reinterpret_cast<char*>(&element), 1);
                 pixels_[pixel_index][color_index] = static_cast<float>(element)
                     / max_color; // rescale inside [0, 1]
             }
