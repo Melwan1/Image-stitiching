@@ -42,9 +42,9 @@ namespace tifo::image
                 float sum = 0;
                 for (int channel_index = 0; channel_index < 3; channel_index++)
                 {
-                    sum += get_pixels()[y * width_ + x][channel_index];
+                    sum += get_pixels()[pixel_index][channel_index];
                 }
-                result_image->get_pixels()[y * width_ + x] = sum / 3;
+                result_image->get_pixels()[pixel_index] = sum / 3;
             }
         }
         return result_image;
