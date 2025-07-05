@@ -20,9 +20,12 @@ int main()
         laplacian.apply_on_image(input_image.to_grayscale());
     result_laplacian->write("laplacian.ppm");
 
-    tifo::filter::GaussianFilter<3> gaussian_filter(2);
+    tifo::filter::GaussianFilter<2> gaussian_filter(1);
 
-    input_image.to_grayscale()->downsample(2)->write("downsampled.ppm");
+    auto downsampled = input_image.to_grayscale()->downsample(2);
+    auto blurred_downsampled = gaussian_filter.apply_on_image(downsampled);
+    downsampled->write("downsampled.ppm");
+    blurred_downsampled->write("blurred.ppm");
 
     return 0;
 }
