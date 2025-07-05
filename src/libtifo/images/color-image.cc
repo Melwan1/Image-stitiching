@@ -1,6 +1,7 @@
 #include <images/color-image.hh>
 
-namespace tifo::image {
+namespace tifo::image
+{
 
     ColorImage::ColorImage()
         : Image()
@@ -12,17 +13,20 @@ namespace tifo::image {
         , pixels_()
     {
         pixels_.resize(width * height);
-        for (int index = 0; index < width * height; index++) {
+        for (int index = 0; index < width * height; index++)
+        {
             pixels_.at(index).resize(3);
         }
     }
 
-    const ColorImage::container_type& ColorImage::get_pixels() const {
+    const ColorImage::container_type& ColorImage::get_pixels() const
+    {
         return pixels_;
     }
 
-    ColorImage::container_type& ColorImage::get_pixels() {
+    ColorImage::container_type& ColorImage::get_pixels()
+    {
         return pixels_;
     }
 
-}
+} // namespace tifo::image

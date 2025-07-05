@@ -6,12 +6,12 @@ namespace tifo::image
 {
 
     Image::Image()
-        , height_(0)
+        : height_(0)
         , width_(0)
     {}
 
     Image::Image(int width, int height)
-        , height_(height)
+        : height_(height)
         , width_(width)
     {}
 

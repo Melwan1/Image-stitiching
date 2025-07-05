@@ -1,6 +1,7 @@
 #include <images/grayscale-image.hh>
 
-namespace tifo::image {
+namespace tifo::image
+{
 
     GrayscaleImage::GrayscaleImage()
         : Image()
@@ -14,12 +15,14 @@ namespace tifo::image {
         pixels_.resize(width * height);
     }
 
-    const GrayscaleImage::container_type& GrayscaleImage::get_pixels() const {
+    const GrayscaleImage::container_type& GrayscaleImage::get_pixels() const
+    {
         return pixels_;
     }
 
-    GrayscaleImage::container_type& GrayscaleImage::get_pixels() {
+    GrayscaleImage::container_type& GrayscaleImage::get_pixels()
+    {
         return pixels_;
     }
 
-} 
+} // namespace tifo::image

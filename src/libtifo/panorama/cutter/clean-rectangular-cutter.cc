@@ -67,7 +67,8 @@ namespace tifo::panorama::cutter
                 image::ColorImage* cropped_image = cut_images.at(
                     vertical_index * horizontal_slices_ + horizontal_index);
                 cut_images[vertical_index * horizontal_slices_
-                           + horizontal_index] = new image::ColorPPMImage(x_max - x_min, y_max - y_min);
+                           + horizontal_index] =
+                    new image::ColorPPMImage(x_max - x_min, y_max - y_min);
                 for (int x = x_min; x < x_max; x++)
                 {
                     for (int y = y_min; y < y_max; y++)

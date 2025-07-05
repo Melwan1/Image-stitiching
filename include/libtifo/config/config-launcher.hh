@@ -1,8 +1,8 @@
 #pragma once
 
+#include <images/color-image.hh>
 #include <string>
 
-#include <images/image.hh>
 #include "yaml-cpp/node/iterator.h"
 
 namespace tifo::config

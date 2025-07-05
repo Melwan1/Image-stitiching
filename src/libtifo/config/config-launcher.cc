@@ -87,7 +87,8 @@ namespace tifo::config
             std::cout << "initial image: " << image->get_width() << "x"
                       << image->get_height() << "\n";
 
-            const std::vector<tifo::image::ColorImage*> cut_images = cutter.cut();
+            const std::vector<tifo::image::ColorImage*> cut_images =
+                cutter.cut();
 
             // Actually write the images and put them in the pipeline
             for (const auto cut_image : cut_images)

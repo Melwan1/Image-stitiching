@@ -116,7 +116,8 @@ namespace tifo::panorama::cutter
                 std::cout << "cutting image from (" << x_min << ", " << y_min
                           << ") to (" << x_max << ", " << y_max << ")\n";
 
-                image::ColorPPMImage* cut_image = new image::ColorPPMImage(x_max - x_min, y_max - y_min);
+                image::ColorPPMImage* cut_image =
+                    new image::ColorPPMImage(x_max - x_min, y_max - y_min);
 
                 for (int dx = 0; dx < cut_image->get_width(); dx++)
                 {

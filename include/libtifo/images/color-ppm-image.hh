@@ -1,7 +1,7 @@
 #pragma once
 
-#include <images/image.hh>
 #include <images/color-image.hh>
+#include <images/image.hh>
 
 namespace tifo::image
 {

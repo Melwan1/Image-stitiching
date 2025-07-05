@@ -1,6 +1,6 @@
 #include <algorithm>
 #include <cmath>
-#include <metrics/convert/color_converter.hh>
+#include <metrics/convert/color-converter.hh>
 
 namespace tifo::metrics::convert
 {

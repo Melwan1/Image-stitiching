@@ -28,9 +28,8 @@ namespace tifo::metrics::distance
                             1);
     }
 
-    void
-    ColorImageDistance::set_image_crop_grid(std::tuple<int, int, int, int> crop_grid,
-                                       int image_index)
+    void ColorImageDistance::set_image_crop_grid(
+        std::tuple<int, int, int, int> crop_grid, int image_index)
     {
         if (image_index < 0 || image_index > 1)
         {

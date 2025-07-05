@@ -45,7 +45,8 @@ namespace tifo::panorama::builder
             input_images_[0]
                 ->get_height(); // suppose every cut has the same size (could
                                 // be dangerous for weird base image size!!)
-        image::ColorPPMImage* result_image = new image::ColorPPMImage(cut_width * horizontal_slices_, cut_height * vertical_slices_);
+        image::ColorPPMImage* result_image = new image::ColorPPMImage(
+            cut_width * horizontal_slices_, cut_height * vertical_slices_);
         for (int horizontal_index = 0; horizontal_index < horizontal_slices_;
              horizontal_index++)
         {

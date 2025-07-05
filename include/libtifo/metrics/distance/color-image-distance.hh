@@ -10,8 +10,9 @@ namespace tifo::metrics::distance
     public:
         ColorImageDistance();
 
-        void set_input_images(
-            const std::pair<image::ColorImage*, image::ColorImage*>& input_images);
+        void
+        set_input_images(const std::pair<image::ColorImage*,
+                                         image::ColorImage*>& input_images);
         void set_image_crop_grid(std::tuple<int, int, int, int> crop_grid,
                                  int image_index);
         double compute_distance();

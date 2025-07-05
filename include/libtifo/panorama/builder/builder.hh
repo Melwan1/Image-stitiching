@@ -10,7 +10,8 @@ namespace tifo::panorama::builder
     {
     public:
         Builder() = default;
-        void set_input_images(const std::vector<image::ColorImage*>& input_images);
+        void
+        set_input_images(const std::vector<image::ColorImage*>& input_images);
         virtual image::ColorImage* build() = 0;
         void free_inputs();
 

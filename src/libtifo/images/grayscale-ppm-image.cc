@@ -72,8 +72,7 @@ namespace tifo::image
         float number_pixels = width_ * height_;
         for (int pixel_index = 0; pixel_index < number_pixels; pixel_index++)
         {
-            char value = static_cast<char>(pixels_[pixel_index]
-                                               * 255.f);
+            char value = static_cast<char>(pixels_[pixel_index] * 255.f);
             ofs.write(&value, 1);
         }
         ofs.close();
