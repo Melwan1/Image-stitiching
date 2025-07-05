@@ -1,6 +1,6 @@
 #pragma once
 
-#include <images/image.hh>
+#include <images/color-image.hh>
 #include <vector>
 
 namespace tifo::panorama::builder
@@ -10,12 +10,12 @@ namespace tifo::panorama::builder
     {
     public:
         Builder() = default;
-        void set_input_images(const std::vector<image::Image*>& input_images);
-        virtual image::Image* build() = 0;
+        void set_input_images(const std::vector<image::ColorImage*>& input_images);
+        virtual image::ColorImage* build() = 0;
         void free_inputs();
 
     protected:
-        std::vector<image::Image*> input_images_;
+        std::vector<image::ColorImage*> input_images_;
     };
 
 } // namespace tifo::panorama::builder

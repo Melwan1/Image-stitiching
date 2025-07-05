@@ -1,17 +1,17 @@
 #pragma once
 
-#include <images/image.hh>
+#include <images/color-image.hh>
 
 namespace tifo::metrics::distance
 {
 
-    class ImageDistance
+    class ColorImageDistance
     {
     public:
-        ImageDistance();
+        ColorImageDistance();
 
         void set_input_images(
-            const std::pair<image::Image*, image::Image*>& input_images);
+            const std::pair<image::ColorImage*, image::ColorImage*>& input_images);
         void set_image_crop_grid(std::tuple<int, int, int, int> crop_grid,
                                  int image_index);
         double compute_distance();
@@ -21,7 +21,7 @@ namespace tifo::metrics::distance
         void free_images();
 
     private:
-        std::pair<image::Image*, image::Image*> input_images_;
+        std::pair<image::ColorImage*, image::ColorImage*> input_images_;
         std::tuple<int, int, int, int> crop_grid1_;
         std::tuple<int, int, int, int> crop_grid2_;
     };

@@ -1,5 +1,5 @@
-#include <images/ppm-image.hh>
-#include <panorama/cutter/clean_rectangular_cutter.hh>
+#include <images/color-ppm-image.hh>
+#include <panorama/cutter/clean-rectangular-cutter.hh>
 #include <sstream>
 
 namespace tifo::panorama::cutter
@@ -32,7 +32,7 @@ namespace tifo::panorama::cutter
         return *this;
     }
 
-    std::vector<image::Image*> CleanRectangularCutter::cut()
+    std::vector<image::ColorImage*> CleanRectangularCutter::cut()
     {
         if (horizontal_slices_ <= 0
             || horizontal_slices_ > input_image_->get_width()
@@ -47,7 +47,7 @@ namespace tifo::panorama::cutter
             throw std::runtime_error(oss.str());
         }
 
-        std::vector<image::Image*> cut_images;
+        std::vector<image::ColorImage*> cut_images;
         cut_images.resize(horizontal_slices_ * vertical_slices_);
         for (int horizontal_index = 0; horizontal_index < horizontal_slices_;
              horizontal_index++)
@@ -55,8 +55,6 @@ namespace tifo::panorama::cutter
             for (int vertical_index = 0; vertical_index < vertical_slices_;
                  vertical_index++)
             {
-                cut_images[vertical_index * horizontal_slices_
-                           + horizontal_index] = new image::PPMImage();
                 int x_min = input_image_->get_width() * horizontal_index
                     / horizontal_slices_;
                 int x_max = input_image_->get_width() * (horizontal_index + 1)
@@ -66,12 +64,10 @@ namespace tifo::panorama::cutter
                 int y_max = input_image_->get_height() * (vertical_index + 1)
                     / vertical_slices_;
 
-                image::Image* cropped_image = cut_images.at(
+                image::ColorImage* cropped_image = cut_images.at(
                     vertical_index * horizontal_slices_ + horizontal_index);
-                cropped_image->set_width(x_max - x_min);
-                cropped_image->set_height(y_max - y_min);
-                cropped_image->get_pixels().resize(
-                    cropped_image->get_width() * cropped_image->get_height());
+                cut_images[vertical_index * horizontal_slices_
+                           + horizontal_index] = new image::ColorPPMImage(x_max - x_min, y_max - y_min);
                 for (int x = x_min; x < x_max; x++)
                 {
                     for (int y = y_min; y < y_max; y++)
@@ -83,7 +79,6 @@ namespace tifo::panorama::cutter
                             cropped_image->get_pixels().at(
                                 (y - y_min) * cropped_image->get_width() + x
                                 - x_min);
-                        output_pixel.resize(3);
                         for (int color_index = 0; color_index < 3;
                              color_index++)
                         {

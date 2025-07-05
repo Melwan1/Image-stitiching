@@ -1,4 +1,4 @@
-#include <config/function_timer.hh>
+#include <config/function-timer.hh>
 
 namespace tifo::config
 {

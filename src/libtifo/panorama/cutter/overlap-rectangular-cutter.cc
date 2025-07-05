@@ -1,8 +1,8 @@
 #include <algorithm>
-#include <config/function_timer.hh>
-#include <images/ppm-image.hh>
+#include <config/function-timer.hh>
+#include <images/color-ppm-image.hh>
 #include <iostream>
-#include <panorama/cutter/overlap_rectangular_cutter.hh>
+#include <panorama/cutter/overlap-rectangular-cutter.hh>
 
 namespace tifo::panorama::cutter
 {
@@ -64,7 +64,7 @@ namespace tifo::panorama::cutter
         return *this;
     }
 
-    std::vector<image::Image*> OverlapRectangularCutter::cut()
+    std::vector<image::ColorImage*> OverlapRectangularCutter::cut()
     {
         // Each image goes from (x_min - horizontal_overlap, y_min -
         // vertical_overlap) to (x_max + horizontal_overlap, y_max +
@@ -73,7 +73,7 @@ namespace tifo::panorama::cutter
 
         config::FunctionTimer function_timer(
             "tifo::panorama::builder::OverlapRectangularCutter", "cut");
-        std::vector<image::Image*> result_images;
+        std::vector<image::ColorImage*> result_images;
 
         // the overlap cannot make an image completely overlap another, so it
         // cannot be larger than the size of the cut images
@@ -116,11 +116,7 @@ namespace tifo::panorama::cutter
                 std::cout << "cutting image from (" << x_min << ", " << y_min
                           << ") to (" << x_max << ", " << y_max << ")\n";
 
-                image::PPMImage* cut_image = new image::PPMImage();
-                cut_image->set_height(y_max - y_min);
-                cut_image->set_width(x_max - x_min);
-                cut_image->get_pixels().resize(cut_image->get_width()
-                                               * cut_image->get_height());
+                image::ColorPPMImage* cut_image = new image::ColorPPMImage(x_max - x_min, y_max - y_min);
 
                 for (int dx = 0; dx < cut_image->get_width(); dx++)
                 {
@@ -134,8 +130,6 @@ namespace tifo::panorama::cutter
                         std::vector<float>& output_pixel =
                             cut_image->get_pixels()[dy * cut_image->get_width()
                                                     + dx];
-
-                        output_pixel.resize(3);
 
                         for (int color_index = 0; color_index < 3;
                              color_index++)

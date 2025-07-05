@@ -1,12 +1,12 @@
-#include <config/config_launcher.hh>
-#include <config/function_timer.hh>
+#include <config/config-launcher.hh>
+#include <config/function-timer.hh>
 #include <iostream>
 
-#include "images/ppm-image.hh"
-#include "metrics/distance/image_distance.hh"
+#include "images/color-ppm-image.hh"
+#include "metrics/distance/color-image-distance.hh"
 #include "panorama/builder/builder.hh"
-#include "panorama/builder/overlap_rectangular_builder.hh"
-#include "panorama/cutter/overlap_rectangular_cutter.hh"
+#include "panorama/builder/overlap-rectangular-builder.hh"
+#include "panorama/cutter/overlap-rectangular-cutter.hh"
 #include "yaml-cpp/yaml.h"
 
 namespace tifo::config
@@ -77,7 +77,7 @@ namespace tifo::config
 
         int output_image_index = 1;
 
-        std::vector<image::Image*> new_pipeline_images;
+        std::vector<image::ColorImage*> new_pipeline_images;
 
         for (const auto image : pipeline_images_)
         {
@@ -87,7 +87,7 @@ namespace tifo::config
             std::cout << "initial image: " << image->get_width() << "x"
                       << image->get_height() << "\n";
 
-            const std::vector<tifo::image::Image*> cut_images = cutter.cut();
+            const std::vector<tifo::image::ColorImage*> cut_images = cutter.cut();
 
             // Actually write the images and put them in the pipeline
             for (const auto cut_image : cut_images)
@@ -138,7 +138,7 @@ namespace tifo::config
             .set_vertical_slices(parameters["vertical_slices"]);
 
         // Create the image
-        image::Image* built_image = builder.build();
+        image::ColorImage* built_image = builder.build();
 
         // Get the file prefix for all the generated images
         const std::string output_filename =
@@ -151,7 +151,7 @@ namespace tifo::config
                            + output_file_type);
 
         // Metrics and prints
-        metrics::distance::ImageDistance image_distance;
+        metrics::distance::ColorImageDistance image_distance;
 
         std::cout << "initial image: " << initial_image_->get_width() << "x"
                   << initial_image_->get_height() << "\n";
@@ -182,10 +182,10 @@ namespace tifo::config
         const std::string input_image_file_path = current_directory_ + "/"
             + input_image_filename + "." + input_image_type;
 
-        image::Image* image;
+        image::ColorImage* image;
         if (input_image_type == "ppm")
         {
-            image = new tifo::image::PPMImage();
+            image = new tifo::image::ColorPPMImage();
             image->read(input_image_file_path);
         }
         else

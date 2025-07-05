@@ -1,5 +1,5 @@
-#include <images/ppm-image.hh>
-#include <panorama/builder/clean_rectangular_builder.hh>
+#include <images/color-ppm-image.hh>
+#include <panorama/builder/clean-rectangular-builder.hh>
 
 namespace tifo::panorama::builder
 {
@@ -30,7 +30,7 @@ namespace tifo::panorama::builder
         return *this;
     }
 
-    image::Image* CleanRectangularBuilder::build()
+    image::ColorImage* CleanRectangularBuilder::build()
     {
         if (input_images_.size()
                 != static_cast<unsigned>(horizontal_slices_ * vertical_slices_)
@@ -40,16 +40,12 @@ namespace tifo::panorama::builder
                 "tifo::panorama::CleanCutRectangularBuilder - build - "
                 "cuts size is invalid.");
         }
-        image::PPMImage* result_image = new image::PPMImage();
         int cut_width = input_images_[0]->get_width();
         int cut_height =
             input_images_[0]
                 ->get_height(); // suppose every cut has the same size (could
                                 // be dangerous for weird base image size!!)
-        result_image->set_width(cut_width * horizontal_slices_);
-        result_image->set_height(cut_height * vertical_slices_);
-        result_image->get_pixels().resize(result_image->get_width()
-                                          * result_image->get_height());
+        image::ColorPPMImage* result_image = new image::ColorPPMImage(cut_width * horizontal_slices_, cut_height * vertical_slices_);
         for (int horizontal_index = 0; horizontal_index < horizontal_slices_;
              horizontal_index++)
         {
@@ -71,7 +67,6 @@ namespace tifo::panorama::builder
                                 ->get_pixels()[(y_min + dy)
                                                    * result_image->get_width()
                                                + (x_min + dx)];
-                        output_pixel.resize(3);
                         for (int color_index = 0; color_index < 3;
                              color_index++)
                         {
