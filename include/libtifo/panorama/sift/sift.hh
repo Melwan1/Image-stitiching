@@ -9,13 +9,17 @@
 namespace tifo::panorama::sift
 {
 
+    constexpr float SIGMA = 1.6f;
+    constexpr unsigned GAUSSIAN_FILTER_SIZE =
+        11; // 2 * std::ceil(3 * SIGMA) + 1
+
     class SIFT
     {
     public:
         SIFT() = default;
 
         std::vector<std::vector<image::GrayscaleImage*>>
-        build_gaussian_pyramid(const image::GrayscaleImage* image);
+        build_gaussian_pyramid(image::GrayscaleImage* image);
         std::vector<std::vector<image::GrayscaleImage*>> build_dog_pyramid(
             const std::vector<std::vector<image::GrayscaleImage*>>& gaussian);
         bool
@@ -30,19 +34,16 @@ namespace tifo::panorama::sift
                            const KeyPoint& keypoint);
 
         // main function
-        std::vector<KeyPoint>
-        detect_and_compute(const image::GrayscaleImage* image);
+        std::vector<KeyPoint> detect_and_compute(image::GrayscaleImage* image);
 
-        void saveKeyPoints(const std::vector<KeyPoint>& keypoints,
-                           const fs::path& save_path);
+        void save_keypoints(const std::vector<KeyPoint>& keypoints,
+                            const fs::path& save_path);
 
     private:
         const int octaves_ = 4;
         const int scales_ = 5;
-        const float sigma_ = 1.6f;
         const float k_ = std::sqrt(2.0f);
         const float contrast_threshold = 0.04f;
-        const float edge_threshold = 10.0f;
-    }
+    };
 
 } // namespace tifo::panorama::sift
