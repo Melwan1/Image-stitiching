@@ -2,7 +2,8 @@
 #include <iostream>
 #include <math/vector.hh>
 #include <panorama/sift/descriptor-matching.hh>
-#include <set>
+#include <random>
+#include <unordered_set>
 
 namespace tifo::panorama::sift
 {
@@ -72,27 +73,32 @@ namespace tifo::panorama::sift
         keypoints2_ = keypoints2;
         matches_ = matches;
 
+        compute_point_normalization();
+
         return matches;
     }
 
     std::vector<Match>
     DescriptorMatcher::random_pick(const std::vector<Match>& matches)
     {
-        std::set<int> indices;
+        std::unordered_set<int> indices;
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dist(0, matches.size() - 1);
+
         while (indices.size() < 4)
         {
-            indices.emplace(std::rand() * matches.size() / RAND_MAX);
+            indices.insert(dist(gen));
         }
         std::vector<Match> result;
         for (int index : indices)
         {
-            std::cout << index << "\n";
             result.push_back(matches[index]);
         }
         return result;
     }
 
-    const math::Matrix3 DescriptorMatcher::compute_homography_DLT(
+    const math::Matrix3 DescriptorMatcher::compute_homography_minimal_DLT(
         const std::vector<Match>& random_sample)
     {
         std::vector<std::vector<double>> A;
@@ -102,8 +108,6 @@ namespace tifo::panorama::sift
             double y = keypoints1_[random_sample[index].idx1].y;
             double xp = keypoints2_[random_sample[index].idx2].x;
             double yp = keypoints2_[random_sample[index].idx2].y;
-            std::cout << "x = " << x << ", y = " << y << ", x' = " << xp
-                      << ", y' = " << yp << "\n";
 
             A.push_back({ -x, -y, -1, 0, 0, 0, x * xp, y * xp, xp });
             A.push_back({ 0, 0, 0, -x, -y, -1, x * yp, y * yp, yp });
@@ -128,11 +132,10 @@ namespace tifo::panorama::sift
                 }
             }
         }
-
         math::Vector<double, 9> h;
         for (int i = 0; i < 9; i++)
         {
-            h[i] = 0;
+            h[i] = 1;
         }
         h = h.normalize();
 
@@ -147,7 +150,7 @@ namespace tifo::panorama::sift
             {
                 for (int j = 0; j < 9; j++)
                 {
-                    h_new[i] = AtA[i][j] * h[j];
+                    h_new[i] += AtA[i][j] * h[j];
                 }
             }
             h_new = h_new.normalize();
@@ -157,19 +160,81 @@ namespace tifo::panorama::sift
         math::Matrix3 H;
         for (int i = 0; i < 9; i++)
         {
-            H(i / 3, i % 3) = h[i] / h[8]; // normalization
+            H(i / 3, i % 3) = h[i]; // normalization
+        }
+
+        return H;
+    }
+
+    const math::Matrix3 DescriptorMatcher::compute_homography_full_DLT(
+        const std::vector<Match>& inliers)
+    {
+        std::vector<std::vector<double>> A;
+
+        for (const auto& match : inliers)
+        {
+            math::Vector3 p1 = normalization_matrix1_
+                * math::Vector3({ keypoints1_[match.idx1].x,
+                                  keypoints1_[match.idx1].y, 1 });
+            math::Vector3 p2 = normalization_matrix2_
+                * math::Vector3({ keypoints2_[match.idx2].x,
+                                  keypoints2_[match.idx2].y, 1 });
+            double x = p1[0];
+            double y = p1[1];
+            double xp = p2[0];
+            double yp = p2[1];
+
+            A.push_back({ -x, -y, -1, 0, 0, 0, x * xp, y * xp, xp });
+            A.push_back({ 0, 0, 0, -x, -y, -1, x * yp, y * yp, yp });
+        }
+
+        std::vector<std::vector<double>> AtA(9, std::vector<double>(9, 0.0));
+        for (const auto& row : A)
+        {
+            for (int i = 0; i < 9; i++)
+            {
+                for (int j = 0; j < 9; j++)
+                {
+                    AtA[i][j] += row[i] * row[j];
+                }
+            }
+        }
+
+        math::Vector<double, 9> h;
+        for (int i = 0; i < 9; i++)
+        {
+            h[i] = 1.0;
+        }
+        h = h.normalize();
+
+        for (int iter = 0; iter < 100; iter++)
+        {
+            math::Vector<double, 9> h_new;
+            for (int i = 0; i < 9; i++)
+            {
+                h_new[i] = 0;
+                for (int j = 0; j < 9; j++)
+                {
+                    h_new[i] += AtA[i][j] * h[j];
+                }
+            }
+            h = h_new.normalize();
+        }
+
+        math::Matrix3 H;
+        for (int i = 0; i < 9; i++)
+        {
+            H(i / 3, i % 3) = h[i];
         }
 
         return H;
     }
 
     std::pair<float, float>
-    DescriptorMatcher::apply_homography(const math::Matrix3& homography, int x,
-                                        int y)
+    DescriptorMatcher::apply_homography(const math::Matrix3& homography,
+                                        const math::Vector3& normalized_point)
     {
-        math::Vector3 result = homography
-            * math::Vector3({ static_cast<float>(x), static_cast<float>(y),
-                              1 });
+        math::Vector3 result = homography * normalized_point;
         return { result[0] / result[2], result[1] / result[2] };
     }
 
@@ -177,29 +242,29 @@ namespace tifo::panorama::sift
     DescriptorMatcher::compute_homography(const std::vector<Match>& matches)
     {
         std::vector<Match> best_inliers;
-        int best_inliers_count;
+        int best_inliers_count = -1;
 
         for (int iter = 0; iter < 1000; iter++)
         {
             std::vector<Match> sample = random_pick(matches);
-            math::Matrix3 H = compute_homography_DLT(sample);
-            std::cout << H << "\n";
+            math::Matrix3 H = compute_homography_minimal_DLT(sample);
 
             int inliers = 0;
             std::vector<Match> inlier_matches;
 
             for (const auto& m : matches)
             {
-                std::pair<int, int> p1 = { keypoints1_[m.idx1].x,
-                                           keypoints1_[m.idx1].y };
-                std::pair<int, int> p2 = { keypoints2_[m.idx2].x,
-                                           keypoints2_[m.idx2].y };
-                std::pair<float, float> projected =
-                    apply_homography(H, p1.first, p1.second);
-                float distance = std::sqrt(
-                    (projected.first - p2.first) * (projected.first - p2.first)
-                    + (projected.second - p2.second)
-                        * (projected.second - p2.second));
+                math::Vector3 t1p1 = normalization_matrix1_
+                    * math::Vector3({ keypoints1_[m.idx1].x,
+                                      keypoints1_[m.idx1].y, 1 });
+                math::Vector3 t2p2 = normalization_matrix2_
+                    * math::Vector3({ keypoints2_[m.idx2].x,
+                                      keypoints2_[m.idx2].y, 1 });
+                std::pair<float, float> projected = apply_homography(H, t1p1);
+                float distance = std::sqrt((projected.first - t2p2[0])
+                                               * (projected.first - t2p2[0])
+                                           + (projected.second - t2p2[1])
+                                               * (projected.second - t2p2[1]));
                 if (distance < 3)
                 {
                     inliers++;
@@ -213,7 +278,75 @@ namespace tifo::panorama::sift
             }
         }
 
-        return compute_homography_DLT(best_inliers);
+        float scale_factor2 = normalization_matrix2_(0, 0);
+        float translation_x2 = normalization_matrix2_(0, 2);
+        float translation_y2 = normalization_matrix2_(1, 2);
+
+        math::Matrix3 normalization_matrix2_inverse = {
+            { 1.f / scale_factor2, 0, -translation_x2 / scale_factor2 },
+            { 0, 1.f / scale_factor2, -translation_y2 / scale_factor2 },
+            { 0, 0, 1 }
+        };
+
+        math::Matrix3 denormalized = normalization_matrix2_inverse
+            * compute_homography_full_DLT(best_inliers)
+            * normalization_matrix1_;
+        for (int i = 0; i < 9; i++)
+        {
+            denormalized(i / 3, i % 3) /= denormalized(2, 2);
+        }
+        return denormalized;
+    }
+
+    void DescriptorMatcher::compute_point_normalization()
+    {
+        float x1_centroid = 0;
+        float y1_centroid = 0;
+        float x2_centroid = 0;
+        float y2_centroid = 0;
+        for (const auto& match : matches_)
+        {
+            x1_centroid += keypoints1_[match.idx1].x;
+            y1_centroid += keypoints1_[match.idx1].y;
+            x2_centroid += keypoints2_[match.idx2].x;
+            y2_centroid += keypoints2_[match.idx2].y;
+        }
+        x1_centroid /= matches_.size();
+        y1_centroid /= matches_.size();
+        x2_centroid /= matches_.size();
+        y2_centroid /= matches_.size();
+
+        float avg_distance1 = 0;
+        float avg_distance2 = 0;
+        for (const auto& match : matches_)
+        {
+            avg_distance1 +=
+                std::sqrt((keypoints1_[match.idx1].x - x1_centroid)
+                              * (keypoints1_[match.idx1].x - x1_centroid)
+                          + (keypoints1_[match.idx1].y - y1_centroid)
+                              * (keypoints1_[match.idx1].y - y1_centroid));
+            avg_distance2 +=
+                std::sqrt((keypoints2_[match.idx2].x - x2_centroid)
+                              * (keypoints2_[match.idx2].x - x2_centroid)
+                          + (keypoints2_[match.idx2].y - y2_centroid)
+                              * (keypoints2_[match.idx2].y - y2_centroid));
+        }
+        avg_distance1 = avg_distance1 / matches_.size();
+        avg_distance2 = avg_distance2 / matches_.size();
+
+        float scale_factor1 = std::sqrt(2) / avg_distance1;
+        float scale_factor2 = std::sqrt(2) / avg_distance2;
+
+        normalization_matrix1_ = {
+            { scale_factor1, 0, -scale_factor1 * x1_centroid },
+            { 0, scale_factor1, -scale_factor1 * y1_centroid },
+            { 0, 0, 1 }
+        };
+        normalization_matrix2_ = {
+            { scale_factor2, 0, -scale_factor2 * x2_centroid },
+            { 0, scale_factor2, -scale_factor2 * y2_centroid },
+            { 0, 0, 1 }
+        };
     }
 
 } // namespace tifo::panorama::sift
