@@ -1,9 +1,80 @@
 #include <filters/gaussian.hh>
 #include <fstream>
 #include <panorama/sift/sift.hh>
+#include <sstream>
 
 namespace tifo::panorama::sift
 {
+
+    std::vector<float> SIFT::generate_gaussian_kernel(float sigma)
+    {
+        int size = static_cast<int>(2 * std::ceil(3 * sigma) + 1);
+        if (size % 2 == 0)
+        {
+            size++;
+        }
+        std::vector<float> kernel(size);
+        int center = size / 2;
+        float sum = 0.0f;
+
+        for (int i = 0; i < size; i++)
+        {
+            float x = i - center;
+            kernel[i] = std::exp(-(x * x) / (2 * sigma * sigma));
+            sum += kernel[i];
+        }
+
+        for (float& k : kernel)
+        {
+            k /= sum;
+        }
+        return kernel;
+    }
+
+    image::GrayscaleImage*
+    SIFT::gaussian_blur(const image::GrayscaleImage* image, float sigma)
+    {
+        std::vector<float> kernel = generate_gaussian_kernel(sigma);
+        int radius = kernel.size() / 2;
+
+        // horizontal blur
+        image::GrayscaleImage* temp = new image::GrayscalePPMImage(
+            image->get_width(), image->get_height());
+        for (int y = 0; y < image->get_height(); y++)
+        {
+            for (int x = 0; x < image->get_width(); x++)
+            {
+                float sum = 0.0f;
+                for (int k = 0; k < static_cast<int>(kernel.size()); k++)
+                {
+                    int px = x + k - radius;
+                    px = std::clamp(px, 0, image->get_width() - 1);
+                    sum += (*image)(px, y) * kernel[k];
+                }
+                (*temp)(x, y) = sum;
+            }
+        }
+
+        // vertical blur
+        image::GrayscaleImage* result = new image::GrayscalePPMImage(
+            image->get_width(), image->get_height());
+        for (int y = 0; y < image->get_height(); y++)
+        {
+            for (int x = 0; x < image->get_width(); x++)
+            {
+                float sum = 0.0f;
+                for (int k = 0; k < static_cast<int>(kernel.size()); k++)
+                {
+                    int py = y + k - radius;
+                    py = std::clamp(py, 0, image->get_height() - 1);
+                    sum += (*temp)(x, py) * kernel[k];
+                }
+                (*result)(x, y) = sum;
+            }
+        }
+        delete temp;
+        return result;
+    }
 
     std::vector<std::vector<image::GrayscaleImage*>>
     SIFT::build_gaussian_pyramid(image::GrayscaleImage* image)
@@ -18,10 +89,7 @@ namespace tifo::panorama::sift
 
             if (octave == 0)
             {
-                filter::GaussianFilter<GAUSSIAN_FILTER_SIZE> gaussian_filter(
-                    SIGMA);
-                pyramid[octave].emplace_back(
-                    gaussian_filter.apply_on_image(current));
+                pyramid[octave].emplace_back(gaussian_blur(current, SIGMA));
             }
             else
             {
@@ -33,7 +101,7 @@ namespace tifo::panorama::sift
             {
                 float sigma = SIGMA * std::pow(k_, scale);
                 image::GrayscaleImage* blurred =
-                    gaussian_filter.apply_on_image(pyramid[octave][scale - 1]);
+                    gaussian_blur(pyramid[octave][scale - 1], sigma);
                 pyramid[octave].emplace_back(blurred);
             }
 
@@ -84,11 +152,7 @@ namespace tifo::panorama::sift
         const std::vector<std::vector<image::GrayscaleImage*>>& dog, int octave,
         int scale, int x, int y)
     {
-        const image::GrayscaleImage* current = dog[octave][scale];
-        const image::GrayscaleImage* above = dog[octave][scale + 1];
-        const image::GrayscaleImage* below = dog[octave][scale - 1];
-
-        float center = (*current)(x, y);
+        float center = (*dog[octave][scale])(x, y);
 
         bool is_max = true;
         bool is_min = true;
@@ -97,22 +161,25 @@ namespace tifo::panorama::sift
         {
             for (int dy = -1; dy <= 1; dy++)
             {
-                if (!current->is_valid_access(x + dx, y + dy))
+                for (int ds = -1; ds <= 1; ds++)
                 {
-                    continue;
-                }
-
-                float val1 = (*below)(x + dx, y + dy);
-                float val2 = (*current)(x + dx, y + dy);
-                float val3 = (*above)(x + dx, y + dx);
-
-                if (val1 >= center || val2 >= center || val3 >= center)
-                {
-                    is_max = false;
-                }
-                if (val1 <= center || val2 <= center || val3 <= center)
-                {
-                    is_min = false;
+                    if (!dog[octave][scale]->is_valid_access(x + dx, y + dy))
+                    {
+                        continue;
+                    }
+                    if (dy == 0 && dx == 0 && ds == 0)
+                    {
+                        continue;
+                    }
+                    float neighbor = (*dog[octave][scale + ds])(x + dx, y + dy);
+                    if (neighbor >= center)
+                    {
+                        is_max = false;
+                    }
+                    if (neighbor <= center)
+                    {
+                        is_min = false;
+                    }
                 }
             }
         }
@@ -338,7 +405,7 @@ namespace tifo::panorama::sift
                 {
                     for (int x = 1; x < current->get_width() - 1; x++)
                     {
-                        if (std::abs((*current)(x, y)) > contrast_threshold
+                        if (std::abs((*current)(x, y)) > contrast_threshold_
                             && is_extremum(dog_pyramid, octave, scale, x, y))
                         {
                             float actual_scale = SIGMA * std::pow(k_, scale)
@@ -355,7 +422,18 @@ namespace tifo::panorama::sift
 
                             keypoint.descriptor = compute_descriptor(
                                 gaussian_pyramid[octave][scale], keypoint);
-                            keypoints.emplace_back(keypoint);
+                            float max = 0;
+                            for (int i = 0; i < 128; i++)
+                            {
+                                if (keypoint.descriptor[i] > max)
+                                {
+                                    max = keypoint.descriptor[i];
+                                }
+                            }
+                            if (max > std::numeric_limits<float>::epsilon())
+                            {
+                                keypoints.emplace_back(keypoint);
+                            }
                         }
                     }
                 }

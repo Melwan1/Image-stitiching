@@ -18,6 +18,10 @@ namespace tifo::panorama::sift
     public:
         SIFT() = default;
 
+        std::vector<float> generate_gaussian_kernel(float sigma);
+        image::GrayscaleImage* gaussian_blur(const image::GrayscaleImage* image,
+                                             float sigma);
+
         std::vector<std::vector<image::GrayscaleImage*>>
         build_gaussian_pyramid(image::GrayscaleImage* image);
         std::vector<std::vector<image::GrayscaleImage*>> build_dog_pyramid(
@@ -43,7 +47,7 @@ namespace tifo::panorama::sift
         const int octaves_ = 4;
         const int scales_ = 5;
         const float k_ = std::sqrt(2.0f);
-        const float contrast_threshold = 0.04f;
+        const float contrast_threshold_ = 0.04f / 255.f;
     };
 
 } // namespace tifo::panorama::sift
