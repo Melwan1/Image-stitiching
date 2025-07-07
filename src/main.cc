@@ -29,6 +29,18 @@ int main()
 
     std::cout << "Detecting SIFT features...\n";
     auto keypoints1 = sift.detect_and_compute(images[0]->to_grayscale());
+
+    for (const auto& keypoint : keypoints1) {
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                (*images[0])(keypoint.x + dx, keypoint.y + dy)[0] = 1;
+                (*images[0])(keypoint.x + dx, keypoint.y + dy)[0] = 0;
+                (*images[0])(keypoint.x + dx, keypoint.y + dy)[0] = 1;
+            }
+        }
+    }
+    images[0]->write("test1_kp.ppm");
+
     auto keypoints2 = sift.detect_and_compute(images[1]->to_grayscale());
 
     std::cout << "Found " << keypoints1.size() << " keypoints\n";

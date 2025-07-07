@@ -259,15 +259,15 @@ namespace tifo::panorama::sift
     }
 
     const math::Matrix3 DescriptorMatcher::compute_homography_minimal_DLT(
-        const std::vector<Match>& random_sample)
+        const std::vector<Match>& random_sample, int width, int height)
     {
         std::vector<std::vector<double>> A;
         for (unsigned index = 0; index < random_sample.size(); index++)
         {
-            double x = keypoints1_[random_sample[index].idx1].x;
-            double y = keypoints1_[random_sample[index].idx1].y;
-            double xp = keypoints2_[random_sample[index].idx2].x;
-            double yp = keypoints2_[random_sample[index].idx2].y;
+            double x = 2 * static_cast<double>(keypoints1_[random_sample[index].idx1].x) / width - 1 ;
+            double y = 2 * static_cast<double>(keypoints1_[random_sample[index].idx1].y) / height - 1;
+            double xp = 2 * static_cast<double>(keypoints2_[random_sample[index].idx2].x) / height - 1;
+            double yp = 2 * static_cast<double>(keypoints2_[random_sample[index].idx2].y) / height - 1;
 
             A.push_back({ -x, -y, -1, 0, 0, 0, x * xp, y * xp, xp });
             A.push_back({ 0, 0, 0, -x, -y, -1, x * yp, y * yp, yp });
@@ -399,7 +399,7 @@ namespace tifo::panorama::sift
     }
 
     math::Matrix3
-    DescriptorMatcher::compute_homography(const std::vector<Match>& matches)
+    DescriptorMatcher::compute_homography(const std::vector<Match>& matches, int width, int height)
     {
         std::vector<Match> best_inliers;
         int best_inliers_count = -1;
@@ -407,7 +407,8 @@ namespace tifo::panorama::sift
         for (int iter = 0; iter < 1000; iter++)
         {
             std::vector<Match> sample = random_pick(matches);
-            math::Matrix3 H = compute_homography_minimal_DLT(sample);
+            math::Matrix3 H = compute_homography_minimal_DLT(sample, width, height);
+            std::cout << "H sample: " << H << "\n";
 
             int inliers = 0;
             std::vector<Match> inlier_matches;
@@ -435,6 +436,7 @@ namespace tifo::panorama::sift
             {
                 best_inliers = inlier_matches;
                 best_inliers_count = inliers;
+                std::cout << "inliers : " << inliers << "\n";
             }
         }
 
@@ -554,7 +556,7 @@ namespace tifo::panorama::sift
 
     image::ColorImage* DescriptorMatcher::stitch(const image::ColorImage* image1, const image::ColorImage* image2) {
 
-        math::Matrix3 H = compute_homography(matches_);
+        math::Matrix3 H = compute_homography(matches_, image1->get_width(), image1->get_height());
 
         std::cout << "H: " << H << "\n";
         float det = H(0, 0) * (H(1, 1) * H(2, 2) - H(1, 2) * H(2, 1)) - 
@@ -625,6 +627,12 @@ namespace tifo::panorama::sift
         math::Matrix3 final_H = offset_correction * H_translated;
 
         math::Matrix3 H_inv = final_H.inverse();
+
+        H_inv = {
+            {1.0, 0.0, 300.0},
+            {0.0, 1.0, 0.0},
+            {0.0, 0.0, 1.0}
+        };
 
         for (int y = 0; y < pano_height; y++) {
             for (int x = 0; x < pano_width; x++) {

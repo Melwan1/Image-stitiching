@@ -48,13 +48,13 @@ namespace tifo::panorama::sift
 
         void compute_point_normalization();
         const math::Matrix3
-        compute_homography_minimal_DLT(const std::vector<Match>& random_sample);
+        compute_homography_minimal_DLT(const std::vector<Match>& random_sample, int width, int height);
         const math::Matrix3
         compute_homography_full_DLT(const std::vector<Match>& inliers);
         std::pair<float, float>
         apply_homography(const math::Matrix3& homography,
                          const math::Vector3& normalized_point);
-        math::Matrix3 compute_homography(const std::vector<Match>& matches);
+        math::Matrix3 compute_homography(const std::vector<Match>& matches, int width, int height);
         std::vector<std::pair<float, float>> warp_corners(const math::Matrix3& H, int width, int height);
         std::vector<float> bilinear_sample(const image::ColorImage* image, float x, float y);
         image::ColorImage* stitch(const image::ColorImage* image1, const image::ColorImage* image2);
