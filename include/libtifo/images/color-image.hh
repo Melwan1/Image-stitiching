@@ -20,6 +20,13 @@ namespace tifo::image
 
         GrayscaleImage* to_grayscale() const;
 
+        // access operator
+        const std::vector<float>& operator()(int x, int y) const;
+        std::vector<float>& operator()(int x, int y);
+
+        // check validity of pixel access
+        bool is_valid_access(int x, int y) const;
+
     protected:
         container_type pixels_;
     };

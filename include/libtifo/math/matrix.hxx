@@ -228,6 +228,26 @@ namespace tifo::math
         return result;
     }
 
+    template <typename ElementType, unsigned lines, unsigned columns>
+    Matrix<ElementType, lines, columns> Matrix<ElementType, lines, columns>::inverse() requires (lines == columns && lines == 3) {
+        auto a = (*this)(0, 0);
+        auto b = (*this)(0, 1);
+        auto c = (*this)(0, 2);
+        auto d = (*this)(1, 0);
+        auto e = (*this)(1, 1);
+        auto f = (*this)(1, 2);
+        auto g = (*this)(2, 0);
+        auto h = (*this)(2, 1);
+        auto i = (*this)(2, 2);
+
+        auto det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+        return math::Matrix3({
+            {e * i - f * h, c * h - b * i, b * f - c * e},
+            {f * g - d * i, a * i - c * g, c * d - a * f},
+            {d * h - e * g, b * g - a * h, a * e - b * d}
+        }) * (1. / det);
+    }
+
 } // namespace tifo::math
 
 template <typename ElementType, unsigned lines, unsigned columns>

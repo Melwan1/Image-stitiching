@@ -1,6 +1,7 @@
 #include <images/color-image.hh>
 #include <images/grayscale-ppm-image.hh>
 #include <iostream>
+#include <sstream>
 
 namespace tifo::image
 {
@@ -49,6 +50,37 @@ namespace tifo::image
             }
         }
         return result_image;
+    }
+
+    bool ColorImage::is_valid_access(int x, int y) const
+    {
+        return x >= 0 && x < width_ && y >= 0 && y < height_;
+    }
+
+    const std::vector<float>& ColorImage::operator()(int x, int y) const
+    {
+        if (!is_valid_access(x, y))
+        {
+            std::ostringstream oss;
+            oss << "tifo::image::ColorImage - pixel access - access at ("
+                << x << ", " << y << ") is invalid for size (" << width_ << ", "
+                << height_ << ")";
+            throw std::runtime_error(oss.str());
+        }
+        return get_pixels()[y * get_width() + x];
+    }
+
+    std::vector<float>& ColorImage::operator()(int x, int y)
+    {
+        if (!is_valid_access(x, y))
+        {
+            std::ostringstream oss;
+            oss << "tifo::image::GrayscaleImage - pixel access - access at ("
+                << x << ", " << y << ") is invalid for size (" << width_ << ", "
+                << height_ << ")";
+            throw std::runtime_error(oss.str());
+        }
+        return get_pixels()[y * get_width() + x];
     }
 
 } // namespace tifo::image

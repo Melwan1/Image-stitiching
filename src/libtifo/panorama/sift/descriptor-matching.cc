@@ -1,9 +1,11 @@
 #include <algorithm>
 #include <iostream>
-#include <math/vector.hh>
-#include <panorama/sift/descriptor-matching.hh>
 #include <random>
 #include <unordered_set>
+
+#include <math/vector.hh>
+#include <panorama/sift/descriptor-matching.hh>
+#include <images/color-ppm-image.hh>
 
 namespace tifo::panorama::sift
 {
@@ -21,6 +23,164 @@ namespace tifo::panorama::sift
         return std::sqrt(distance);
     }
 
+
+    std::pair<int, int> DescriptorMatcher::find_two_nearest_neighbors(const std::vector<float>& query_desc, const std::vector<KeyPoint>& target_keypoints) {
+        float min_dist1 = 1000.0f;
+        float min_dist2 = 1000.0f;
+        int best_idx = -1;
+        int second_best_idx = -1;
+        for (unsigned i = 0; i < target_keypoints.size(); i++) {
+            float distance = descriptor_distance(query_desc, target_keypoints[i].descriptor);
+            if (distance < min_dist1) {
+                min_dist2 = min_dist1;
+                second_best_idx = best_idx;
+                min_dist1 = distance;
+                best_idx = i;
+            }
+            else if (distance < min_dist2) {
+                min_dist2 = distance;
+                second_best_idx = i;
+            }
+        }
+
+        return std::make_pair(best_idx, second_best_idx);
+    }
+
+    std::vector<Match>
+    DescriptorMatcher::forward_matching(const std::vector<KeyPoint>& keypoints1, const std::vector<KeyPoint>& keypoints2) {
+        std::vector<Match> matches;
+
+        for (unsigned i = 0; i < keypoints1.size(); i++) {
+            auto [best_idx, second_best_idx] = find_two_nearest_neighbors(keypoints1[i].descriptor, keypoints2);
+            if (best_idx == -1 || second_best_idx == -1) {
+                continue;
+            }
+
+            float best_dist = descriptor_distance(keypoints1[i].descriptor, keypoints2[best_idx].descriptor);
+            float second_best_dist = descriptor_distance(keypoints1[i].descriptor, keypoints2[second_best_idx].descriptor);
+
+            if (best_dist < ratio_threshold * second_best_dist && best_dist < max_descriptor_distance) {
+
+                Match match;
+                match.idx1 = i;
+                match.idx2 = best_idx;
+                match.distance = best_dist;
+                match.pt1 = {keypoints1[i].x, keypoints1[i].y};
+                match.pt2 = {keypoints2[best_idx].x, keypoints2[best_idx].y};
+                matches.push_back(match);
+            }
+        }
+        return matches;
+    }
+    std::vector<Match>
+    DescriptorMatcher::backward_matching(const std::vector<KeyPoint>& keypoints1, const std::vector<KeyPoint>& keypoints2) {
+        std::vector<Match> matches;
+
+        for (unsigned i = 0; i < keypoints1.size(); i++) {
+            auto [best_idx, second_best_idx] = find_two_nearest_neighbors(keypoints2[i].descriptor, keypoints1);
+            if (best_idx == -1 || second_best_idx == -1) {
+                continue;
+            }
+
+            float best_dist = descriptor_distance(keypoints2[i].descriptor, keypoints1[best_idx].descriptor);
+            float second_best_dist = descriptor_distance(keypoints2[i].descriptor, keypoints1[second_best_idx].descriptor);
+
+            if (best_dist < ratio_threshold * second_best_dist && best_dist < max_descriptor_distance) {
+
+                Match match;
+                match.idx1 = best_idx;
+                match.idx2 = i;
+                match.distance = best_dist;
+                match.pt1 = {keypoints1[best_idx].x, keypoints1[best_idx].y};
+                match.pt2 = {keypoints2[i].x, keypoints2[i].y};
+                matches.push_back(match);
+            }
+        }
+        return matches;
+    }
+
+    std::vector<Match> DescriptorMatcher::cross_check_matching(const std::vector<KeyPoint>& keypoints1, const std::vector<KeyPoint>& keypoints2) {
+        std::vector<Match> forward_matches = forward_matching(keypoints1, keypoints2);
+        std::vector<Match> backward_matches = backward_matching(keypoints1, keypoints2);
+        std::vector<Match> cross_checked_matches;
+
+        for (const auto& forward_match : forward_matches) {
+            for (const auto& backward_match : backward_matches) {
+                if (forward_match.idx1 == backward_match.idx1 && forward_match.idx2 == backward_match.idx2) {
+                    cross_checked_matches.push_back(forward_match);
+                    break;
+                }
+            }
+        }
+
+        std::cout << "Forward matches: " << forward_matches.size() << "\n";
+        std::cout << "Backward matches: " << backward_matches.size() << "\n";
+        std::cout << "Cross-checked matches: " << cross_checked_matches.size() << "\n";
+
+        return cross_checked_matches;
+
+    }
+
+    std::vector<Match> DescriptorMatcher::geometric_verification(const std::vector<Match>& matches) {
+        if (matches.size() < 4) {
+            return matches;
+        }
+
+        std::vector<float> dx_values, dy_values;
+        for (const auto& match : matches) {
+            dx_values.push_back(match.pt2.first - match.pt1.first);
+            dy_values.push_back(match.pt2.second - match.pt1.second);
+        }
+
+        std::sort(dx_values.begin(), dx_values.end());
+        std::sort(dy_values.begin(), dy_values.end());
+
+        float median_dx = dx_values[dx_values.size() / 2];
+        float median_dy = dy_values[dy_values.size() / 2];
+
+        std::cout << "Median displacement: " << "dx = " << median_dx << ", dy = " << median_dy << "\n";
+
+        std::vector<Match> geometrically_consistent_matches;
+
+        for (const auto& match : matches) {
+            float dx = match.pt2.first - match.pt1.first;
+            float dy = match.pt2.second - match.pt1.second;
+
+            float dx_diff = std::abs(dx - median_dx);
+            float dy_diff = std::abs(dy - median_dy);
+
+            if (dx_diff < geometric_threshold && dy_diff < geometric_threshold) {
+                geometrically_consistent_matches.push_back(match);
+            }
+            else {
+                std::cout << "Rejecting match: (" << match.pt1.first << ", " << match.pt1.second << ") <--> (" << match.pt2.first << ", " << match.pt2.second << "), dx = " << dx << ", dy = " << dy << "\n";
+            }
+        }
+
+        std::cout << "Geometrically consistent matches: " << geometrically_consistent_matches.size() << " out of " << matches.size() << "\n";
+
+        return geometrically_consistent_matches;
+    }
+
+
+    std::vector<Match> DescriptorMatcher::robust_matching(const std::vector<KeyPoint>& keypoints1, const std::vector<KeyPoint>& keypoints2) {
+
+        std::cout << "=== ROBUST SIFT MATCHING PIPELINE ===\n";
+        std::cout << "Keypoints1: " << keypoints1.size() << ", Keypoints2: " << keypoints2.size() << "\n";  
+        std::vector<Match> cross_checked = cross_check_matching(keypoints1, keypoints2);
+        std::vector<Match> final_matches = geometric_verification(cross_checked);
+        std::cout << "Final matches: " << final_matches.size() << "\n";
+
+        keypoints1_ = keypoints1;
+        keypoints2_ = keypoints2;
+
+        matches_ = final_matches;
+
+        return final_matches;
+
+
+    }
+
     std::vector<Match> DescriptorMatcher::match_descriptors(
         const std::vector<KeyPoint>& keypoints1,
         const std::vector<KeyPoint>& keypoints2, float ratio_threshold)
@@ -33,7 +193,7 @@ namespace tifo::panorama::sift
 
             float best_distance = std::numeric_limits<float>::max();
             float second_best_distance = std::numeric_limits<float>::max();
-            int best_index = -1;
+            int best_idx = -1;
 
             for (unsigned j = 0; j < keypoints2.size(); j++)
             {
@@ -44,7 +204,7 @@ namespace tifo::panorama::sift
                 {
                     second_best_distance = best_distance;
                     best_distance = distance;
-                    best_index = j;
+                    best_idx = j;
                 }
                 else if (distance < second_best_distance)
                 {
@@ -54,10 +214,10 @@ namespace tifo::panorama::sift
 
             // Lowe's ratio test
             if (best_distance < ratio_threshold * second_best_distance
-                && best_distance <= 0.25)
+                && best_distance <= 0.12)
             {
                 matches.emplace_back(
-                    Match(static_cast<int>(i), best_index, best_distance));
+                    Match(static_cast<int>(i), best_idx, best_distance, {keypoints1[i].x, keypoints1[i].y}, {keypoints2[best_idx].x, keypoints2[best_idx].y}));
             }
         }
 
@@ -347,6 +507,146 @@ namespace tifo::panorama::sift
             { 0, scale_factor2, -scale_factor2 * y2_centroid },
             { 0, 0, 1 }
         };
+    }
+
+
+    std::vector<std::pair<float, float>> DescriptorMatcher::warp_corners(const math::Matrix3& H, int width, int height) {
+        std::vector<std::pair<float, float>> corners = {
+            {0, 0},
+            {width, 0},
+            {width, height},
+            {0, height}
+        };
+
+        std::vector<std::pair<float, float>> warped;
+        for (auto [x, y] : corners) {
+            math::Vector3 p = H * math::Vector3({x, y, 1});
+            warped.push_back({p[0] / p[2], p[1] / p[2]});
+        }
+        return warped;
+    }
+
+
+    std::vector<float> DescriptorMatcher::bilinear_sample(const image::ColorImage* image, float x, float y) {
+
+        std::vector<float> result;
+
+        int x0 = static_cast<int>(std::floor(x));
+        int y0 = static_cast<int>(std::floor(y));
+        int x1 = x0 + 1;
+        int y1 = y0 + 1;
+        if (x0 < 0 || x1 >= image->get_width() || y0 < 0 || y1 >= image->get_height()) {
+            return {0, 0, 0};
+        }
+        float dx = x - x0;
+        float dy = y - y0;
+
+        std::vector<float> color00 = (*image)(x0, y0);
+        std::vector<float> color10 = (*image)(x1, y0);
+        std::vector<float> color01 = (*image)(x0, y1);
+        std::vector<float> color11 = (*image)(x1, y1);
+
+        for (int channel_index = 0; channel_index < 3; channel_index++) {
+            result.emplace_back((1 - dx) * (1 - dy) * color00[channel_index] + dx * (1 - dy) * color10[channel_index] + (1 - dx) * dy * color01[channel_index] + dx * dy * color11[channel_index]);
+        }
+        return result;
+    }
+
+    image::ColorImage* DescriptorMatcher::stitch(const image::ColorImage* image1, const image::ColorImage* image2) {
+
+        math::Matrix3 H = compute_homography(matches_);
+
+        std::cout << "H: " << H << "\n";
+        float det = H(0, 0) * (H(1, 1) * H(2, 2) - H(1, 2) * H(2, 1)) - 
+                H(0, 1) * (H(1, 0) * H(2, 2) - H(1, 2) * H(2, 0)) + 
+                H(0, 2) * (H(1, 0) * H(2, 1) - H(1, 1) * H(2, 0));
+        
+        std::cout << "Homography determinant: " << det << std::endl;
+
+        math::Matrix3 translation = {
+            {1, 0, static_cast<float>(image1->get_width())},
+            {0, 1, 0},
+            {0, 0, 1}
+        };
+        math::Matrix3 H_translated = translation * H;
+
+        std::vector<math::Vector3> corners = {
+            {0, 0, 1},
+            {static_cast<float>(image2->get_width()), 0, 1},
+            {0, static_cast<float>(image2->get_height()), 1},
+            {static_cast<float>(image2->get_width()), static_cast<float>(image2->get_height()), 1}
+        };
+
+        float min_x = 0;
+        float max_x = image1->get_width();
+        float min_y = 0;
+        float max_y = image1->get_height();
+
+        for (const auto& corner : corners) {
+            math::Vector3 warped = H_translated * corner;
+            float x = warped[0] / warped[2];
+            float y = warped[1] / warped[2];
+            min_x = std::min(min_x, x);
+            max_x = std::max(max_x, x);
+            min_y = std::min(min_y, y);
+            max_y = std::max(max_y, y);
+        }
+
+        int offset_x = static_cast<int>(std::min(0.0f, min_x));
+        int offset_y = static_cast<int>(std::min(0.0f, min_y));
+
+        int pano_width = (max_x - min_x);
+        int pano_height = (max_y - min_y);
+
+        image::ColorPPMImage* panorama = new image::ColorPPMImage(pano_width, pano_height);
+
+        for (int y = 0; y < image1->get_height(); y++) {
+            for (int x = 0; x < image1->get_width(); x++) {
+                (*panorama)(x, y) = {0, 0, 0};
+            }
+        }
+
+        for (int y = 0; y < image1->get_height(); y++) {
+            for (int x = 0; x < image1->get_width(); x++) {
+                int pano_x = x - offset_x;
+                int pano_y = y - offset_y;
+                if (pano_x >= 0 && pano_x < pano_width && pano_y >= 0 && pano_y < pano_height) {
+                    (*panorama)(pano_x, pano_y) = (*image1)(x, y);
+                }
+            }
+        }
+
+        math::Matrix3 offset_correction = {
+            {1, 0, static_cast<float>(-offset_x)},
+            {0, 1, static_cast<float>(-offset_y)},
+            {0, 0, 1}
+        };
+
+        math::Matrix3 final_H = offset_correction * H_translated;
+
+        math::Matrix3 H_inv = final_H.inverse();
+
+        for (int y = 0; y < pano_height; y++) {
+            for (int x = 0; x < pano_width; x++) {
+                math::Vector3 p = H_inv * math::Vector3({static_cast<float>(x), static_cast<float>(y), 1.0});
+                float u = p[0] / p[2];
+                float v = p[1] / p[2];
+
+                if (u >= 0 && u < image2->get_width() && v >= 0 && v < image2->get_height()) {
+                    std::vector<float> pixel2 = bilinear_sample(image2, u, v);
+                    std::vector<float> current = (*panorama)(x, y);
+                    if (current[0] > 0 || current[1] > 0 || current[2] > 0) {
+                        (*panorama)(x, y) = {(current[0] + pixel2[0]) / 2, (current[1] + pixel2[1]) / 2, (current[2] + pixel2[2]) / 2};
+                    }
+                    else {
+                        (*panorama)(x, y) = pixel2;
+                    }
+                }
+            }
+        }
+
+        return panorama;
+
     }
 
 } // namespace tifo::panorama::sift
