@@ -76,7 +76,7 @@ namespace tifo::panorama::sift
     DescriptorMatcher::backward_matching(const std::vector<KeyPoint>& keypoints1, const std::vector<KeyPoint>& keypoints2) {
         std::vector<Match> matches;
 
-        for (unsigned i = 0; i < keypoints1.size(); i++) {
+        for (unsigned i = 0; i < keypoints2.size(); i++) {
             auto [best_idx, second_best_idx] = find_two_nearest_neighbors(keypoints2[i].descriptor, keypoints1);
             if (best_idx == -1 || second_best_idx == -1) {
                 continue;
