@@ -482,7 +482,7 @@ namespace tifo::panorama::sift
             H(i / 3, i % 3) = h[i] / h[8];
         }
 
-        std::cout << "final H " << H << "\n";
+        // std::cout << "final H " << H << "\n";
 
         return H;
     }
@@ -523,19 +523,17 @@ namespace tifo::panorama::sift
 
         for (int iter = 0; iter < 1000; iter++)
         {
+            std::cout << "iteration " << iter << "\r" << std::flush;
             std::vector<Match> sample = random_pick(matches);
             math::Matrix3 H = compute_homography_minimal_DLT(sample);
-            math::Matrix3 H_denormalized =
-                normalization_matrix1_inverse * H * normalization_matrix2_;
-
             int inliers = 0;
             std::vector<Match> inlier_matches;
 
             for (const auto& m : matches)
             {
-                std::cout << "normalized homography: " << H << "\n";
-                std::cout << "denormalized homography: " << H_denormalized
-                          << "\n";
+                // std::cout << "normalized homography: " << H << "\n";
+                // std::cout << "denormalized homography: " << H_denormalized
+                //           << "\n";
                 math::Vector3 t1p1 = normalization_matrix1_
                     * math::Vector3({ keypoints1_[m.idx1].x,
                                       keypoints1_[m.idx1].y, 1 });
@@ -547,9 +545,9 @@ namespace tifo::panorama::sift
                                                * (projected.first - t1p1[0])
                                            + (projected.second - t1p1[1])
                                                * (projected.second - t1p1[1]));
-                std::cout << "distance between (" << projected.first << ", "
-                          << projected.second << ") and " << t1p1 << "\n";
-                std::cout << "distance: " << distance << "\n";
+                // std::cout << "distance between (" << projected.first << ", "
+                //           << projected.second << ") and " << t1p1 << "\n";
+                // std::cout << "distance: " << distance << "\n";
                 if (distance < 3)
                 {
                     inliers++;
@@ -561,7 +559,7 @@ namespace tifo::panorama::sift
                 best_inliers = inlier_matches;
                 best_inliers_count = inliers;
             }
-            std::cout << "inliers : " << inliers << "\n";
+            // std::cout << "inliers : " << inliers << "\n";
         }
 
         math::Matrix3 denormalized = normalization_matrix2_inverse
@@ -673,117 +671,109 @@ namespace tifo::panorama::sift
                               const image::ColorImage* image2)
     {
         math::Matrix3 H = compute_homography(matches_);
+        std::cout << "H: " << H << "\n";
+        int image2_start = -H(0, 2);
 
-        float det = H(0, 0) * (H(1, 1) * H(2, 2) - H(1, 2) * H(2, 1))
-            - H(0, 1) * (H(1, 0) * H(2, 2) - H(1, 2) * H(2, 0))
-            + H(0, 2) * (H(1, 0) * H(2, 1) - H(1, 1) * H(2, 0));
-
-        (void)det;
-
-        math::Matrix3 translation = {
-            { 1, 0, static_cast<float>(image1->get_width()) },
-            { 0, 1, 0 },
-            { 0, 0, 1 }
-        };
-        math::Matrix3 H_translated = translation * H;
-
-        std::vector<math::Vector3> corners = {
-            { 0, 0, 1 },
-            { static_cast<float>(image2->get_width()), 0, 1 },
-            { 0, static_cast<float>(image2->get_height()), 1 },
-            { static_cast<float>(image2->get_width()),
-              static_cast<float>(image2->get_height()), 1 }
-        };
-
-        float min_x = 0;
-        float max_x = image1->get_width();
-        float min_y = 0;
-        float max_y = image1->get_height();
-
-        for (const auto& corner : corners)
-        {
-            math::Vector3 warped = H_translated * corner;
-            float x = warped[0] / warped[2];
-            float y = warped[1] / warped[2];
-            min_x = std::min(min_x, x);
-            max_x = std::max(max_x, x);
-            min_y = std::min(min_y, y);
-            max_y = std::max(max_y, y);
-        }
-
-        int offset_x = static_cast<int>(std::min(0.0f, min_x));
-        int offset_y = static_cast<int>(std::min(0.0f, min_y));
-
-        int pano_width = (max_x - min_x);
-        int pano_height = (max_y - min_y);
+        // Fixed panorama dimensions (same as original image)
+        int pano_width = image1->get_width() + image2_start;
+        int pano_height = std::max(image1->get_height(), image2->get_height());
 
         image::ColorPPMImage* panorama =
             new image::ColorPPMImage(pano_width, pano_height);
 
-        for (int y = 0; y < image1->get_height(); y++)
-        {
-            for (int x = 0; x < image1->get_width(); x++)
-            {
-                (*panorama)(x, y) = { 0, 0, 0 };
-            }
-        }
-
-        for (int y = 0; y < image1->get_height(); y++)
-        {
-            for (int x = 0; x < image1->get_width(); x++)
-            {
-                int pano_x = x - offset_x;
-                int pano_y = y - offset_y;
-                if (pano_x >= 0 && pano_x < pano_width && pano_y >= 0
-                    && pano_y < pano_height)
-                {
-                    (*panorama)(pano_x, pano_y) = (*image1)(x, y);
-                }
-            }
-        }
-
-        math::Matrix3 offset_correction = {
-            { 1, 0, static_cast<float>(-offset_x) },
-            { 0, 1, static_cast<float>(-offset_y) },
-            { 0, 0, 1 }
-        };
-
-        math::Matrix3 final_H = offset_correction * H_translated;
-
-        math::Matrix3 H_inv = final_H.inverse();
-
-        H_inv = { { 1.0, 0.0, 300.0 }, { 0.0, 1.0, 0.0 }, { 0.0, 0.0, 1.0 } };
-
+        // Initialize panorama with zeros
         for (int y = 0; y < pano_height; y++)
         {
             for (int x = 0; x < pano_width; x++)
             {
-                math::Vector3 p = H_inv
-                    * math::Vector3({ static_cast<float>(x),
-                                      static_cast<float>(y), 1.0 });
-                float u = p[0] / p[2];
-                float v = p[1] / p[2];
+                (*panorama)(x, y) = { 0.0f, 0.0f, 0.0f };
+            }
+        }
 
-                if (u >= 0 && u < image2->get_width() && v >= 0
-                    && v < image2->get_height())
+        // First, place image1 directly (it stays at origin)
+        for (int y = 0; y < image1->get_height(); y++)
+        {
+            for (int x = 0; x < image1->get_width(); x++)
+            {
+                if (x < pano_width && y < pano_height)
                 {
-                    std::vector<float> pixel2 = bilinear_sample(image2, u, v);
-                    std::vector<float> current = (*panorama)(x, y);
-                    if (current[0] > 0 || current[1] > 0 || current[2] > 0)
-                    {
-                        (*panorama)(x, y) = { (current[0] + pixel2[0]) / 2,
-                                              (current[1] + pixel2[1]) / 2,
-                                              (current[2] + pixel2[2]) / 2 };
-                    }
-                    else
-                    {
-                        (*panorama)(x, y) = pixel2;
-                    }
+                    (*panorama)(x, y) = (*image1)(x, y);
                 }
             }
         }
 
+        // Get inverse homography to transform from panorama to image2
+        math::Matrix3 H_inv = H.inverse();
+        std::cout << "H_inv: " << H_inv << "\n";
+
+        // Now iterate through panorama pixels and sample from image2 where
+        // needed
+        for (int y = 0; y < pano_height; y++)
+        {
+            for (int x = 0; x < pano_width; x++)
+            {
+                // Only process regions where image2 should contribute
+                if (x >= image2_start)
+                {
+                    // Transform panorama coordinates to image2 coordinates
+                    math::Vector3 p = H
+                        * math::Vector3({ static_cast<float>(x),
+                                          static_cast<float>(y), 1.0f });
+                    float u = p[0] / p[2];
+                    float v = p[1] / p[2];
+
+                    // Check if the transformed point is within image2 bounds
+                    if (u >= 0 && u < image2->get_width() && v >= 0
+                        && v < image2->get_height())
+                    {
+                        std::vector<float> pixel2 =
+                            bilinear_sample(image2, u, v);
+                        std::vector<float> current = (*panorama)(x, y);
+
+                        if (x >= image2_start && x < image1->get_width())
+                        {
+                            // Region 2: x = 300 to 700 - blend image1 and
+                            // image2
+                            float blending_factor = linear_blending(
+                                x, image1->get_width(), image2_start);
+                            (*panorama)(x, y) = {
+                                current[0] * blending_factor
+                                    + pixel2[0] * (1 - blending_factor),
+                                current[1] * blending_factor
+                                    + pixel2[1] * (1 - blending_factor),
+                                current[2] * blending_factor
+                                    + pixel2[2] * (1 - blending_factor)
+                            };
+                        }
+                        else if (x >= image2->get_width()
+                                 && x < image2_start + image1->get_width())
+                        {
+                            // Region 3: x = 700 to 1000 - only image2
+                            (*panorama)(x, y) = pixel2;
+                        }
+                    }
+                }
+                // Region 1: x = 0 to 300 - only image1 (already placed, do
+                // nothing)
+            }
+        }
+
         return panorama;
+    }
+
+    float DescriptorMatcher::linear_blending(int x, int image1_width,
+                                             int image2_start)
+    {
+        if (x < image2_start)
+        {
+            return 1.;
+        }
+        if (x < image1_width)
+        {
+            return static_cast<float>(image1_width - x)
+                / static_cast<float>(image1_width - image2_start);
+        }
+        return 0.;
     }
 
 } // namespace tifo::panorama::sift

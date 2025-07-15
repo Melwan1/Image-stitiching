@@ -73,6 +73,7 @@ namespace tifo::panorama::sift
                                            float x, float y);
         image::ColorImage* stitch(const image::ColorImage* image1,
                                   const image::ColorImage* image2);
+        float linear_blending(int x, int image1_width, int image2_start);
 
     private:
         std::vector<KeyPoint> keypoints1_;

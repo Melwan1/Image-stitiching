@@ -27,8 +27,8 @@ int main()
             for (int dy = -1; dy <= 1; dy++)
             {
                 bedroom2(keypoint.x + dx, keypoint.y + dy)[0] = 1;
-                bedroom2(keypoint.x + dx, keypoint.y + dy)[0] = 0;
-                bedroom2(keypoint.x + dx, keypoint.y + dy)[0] = 1;
+                bedroom2(keypoint.x + dx, keypoint.y + dy)[1] = 0;
+                bedroom2(keypoint.x + dx, keypoint.y + dy)[2] = 1;
             }
         }
     }
@@ -43,8 +43,8 @@ int main()
             for (int dy = -1; dy <= 1; dy++)
             {
                 bedroom1(keypoint.x + dx, keypoint.y + dy)[0] = 1;
-                bedroom1(keypoint.x + dx, keypoint.y + dy)[0] = 0;
-                bedroom1(keypoint.x + dx, keypoint.y + dy)[0] = 1;
+                bedroom1(keypoint.x + dx, keypoint.y + dy)[1] = 0;
+                bedroom1(keypoint.x + dx, keypoint.y + dy)[2] = 0;
             }
         }
     }

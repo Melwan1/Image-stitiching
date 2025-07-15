@@ -1,1 +1,2 @@
-add_subdirectory(convert) add_subdirectory(distance)
+add_subdirectory(convert)
+add_subdirectory(distance)

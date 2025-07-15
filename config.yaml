@@ -8,24 +8,24 @@ pipeline:
 
       image:
         type: ppm
-        filename: julie2
+        filename: whale_and_bird
 
       parameters:
-        horizontal_slices: 2
-        vertical_slices: 2
-        horizontal_overlap_size: 10
-        vertical_overlap_size: 10
+        horizontal_slices: 8
+        vertical_slices: 8
+        horizontal_overlap_size: 30
+        vertical_overlap_size: 30
 
     output:
-      file_prefix: cut_julie_
+      file_prefix: cut_landscape_
 
   - algorithm: overlap-rectangular-builder
 
     input:
 
       parameters:
-        horizontal_slices: 2
-        vertical_slices: 2
+        horizontal_slices: 8
+        vertical_slices: 8
 
     output:
       type: ppm

@@ -1,1 +1,3 @@
-target_sources(libtifo PRIVATE color - image - distance.cc)
+target_sources(libtifo PRIVATE
+    color-image-distance.cc
+)

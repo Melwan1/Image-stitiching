@@ -1,1 +1,4 @@
-target_sources(libtifo PUBLIC sobel.cc laplacian.cc)
+target_sources(libtifo PUBLIC
+    sobel.cc
+    laplacian.cc
+)
