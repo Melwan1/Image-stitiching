@@ -1,3 +1,1 @@
-add_subdirectory(builder)
-add_subdirectory(cutter)
-add_subdirectory(sift)
+add_subdirectory(builder) add_subdirectory(cutter) add_subdirectory(sift)

@@ -3,52 +3,59 @@
 #include <images/grayscale-ppm-image.hh>
 #include <iostream>
 #include <math/matrix.hh>
+#include <panorama/cutter/overlap-rectangular-cutter.hh>
 #include <panorama/sift/descriptor-matching.hh>
 #include <panorama/sift/sift.hh>
-#include <panorama/cutter/overlap-rectangular-cutter.hh>
 
 int main()
 {
     // tifo::config::ConfigLauncher config_launcher("config.yaml");
 
-    tifo::image::ColorPPMImage input;
     tifo::panorama::sift::SIFT sift;
-    std::cout << "loading image...\n";
-    input.read("tests/landscape_small.ppm");
 
-    std::vector<tifo::image::ColorImage*> images;
-    tifo::panorama::cutter::OverlapRectangularCutter cutter;
-    cutter.set_input_image(&input);
-    cutter.set_horizontal_overlap_size(200);
-    cutter.set_vertical_overlap_size(20);
-    cutter.set_horizontal_slices(2);
-    cutter.set_vertical_slices(1);
-    images = cutter.cut();
-    images[0]->write("test1.ppm");
-    images[1]->write("test2.ppm");
+    tifo::image::ColorPPMImage bedroom2, bedroom1;
+    bedroom2.read("test1.ppm");
+    bedroom1.read("test2.ppm");
 
     std::cout << "Detecting SIFT features...\n";
-    auto keypoints1 = sift.detect_and_compute(images[0]->to_grayscale());
+    auto keypoints1 = sift.detect_and_compute(bedroom2.to_grayscale());
 
-    for (const auto& keypoint : keypoints1) {
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                (*images[0])(keypoint.x + dx, keypoint.y + dy)[0] = 1;
-                (*images[0])(keypoint.x + dx, keypoint.y + dy)[0] = 0;
-                (*images[0])(keypoint.x + dx, keypoint.y + dy)[0] = 1;
+    for (const auto& keypoint : keypoints1)
+    {
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                bedroom2(keypoint.x + dx, keypoint.y + dy)[0] = 1;
+                bedroom2(keypoint.x + dx, keypoint.y + dy)[0] = 0;
+                bedroom2(keypoint.x + dx, keypoint.y + dy)[0] = 1;
             }
         }
     }
-    images[0]->write("test1_kp.ppm");
+    bedroom2.write("bedroom2_kp.ppm");
 
-    auto keypoints2 = sift.detect_and_compute(images[1]->to_grayscale());
+    auto keypoints2 = sift.detect_and_compute(bedroom1.to_grayscale());
 
-    std::cout << "Found " << keypoints1.size() << " keypoints\n";
+    for (const auto& keypoint : keypoints2)
+    {
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                bedroom1(keypoint.x + dx, keypoint.y + dy)[0] = 1;
+                bedroom1(keypoint.x + dx, keypoint.y + dy)[0] = 0;
+                bedroom1(keypoint.x + dx, keypoint.y + dy)[0] = 1;
+            }
+        }
+    }
+
+    bedroom1.write("bedroom1_kp.ppm");
 
     tifo::panorama::sift::DescriptorMatcher matcher;
     std::vector<tifo::panorama::sift::Match> matches =
         matcher.robust_matching(keypoints1, keypoints2);
-    tifo::image::ColorImage* final_result = matcher.stitch(images[0], images[1]);
+    tifo::image::ColorImage* final_result =
+        matcher.stitch(&bedroom2, &bedroom1);
     final_result->write("final.ppm");
 
     return 0;

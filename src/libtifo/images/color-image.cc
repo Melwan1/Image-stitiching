@@ -62,8 +62,8 @@ namespace tifo::image
         if (!is_valid_access(x, y))
         {
             std::ostringstream oss;
-            oss << "tifo::image::ColorImage - pixel access - access at ("
-                << x << ", " << y << ") is invalid for size (" << width_ << ", "
+            oss << "tifo::image::ColorImage - pixel access - access at (" << x
+                << ", " << y << ") is invalid for size (" << width_ << ", "
                 << height_ << ")";
             throw std::runtime_error(oss.str());
         }

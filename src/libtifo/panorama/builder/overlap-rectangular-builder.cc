@@ -172,6 +172,7 @@ namespace tifo::panorama::builder
                 {
                     dy += overlap_y / 2;
                 }
+                std::cout << "dx = " << dx << ", dy = " << dy << "\n";
 
                 for (int color_index = 0; color_index < 3; color_index++)
                 {

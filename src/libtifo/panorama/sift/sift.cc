@@ -112,6 +112,16 @@ namespace tifo::panorama::sift
             }
         }
 
+        for (int octave = 0; octave < octaves_; octave++)
+        {
+            for (int scale = 0; scale < scales_ + 3; scale++)
+            {
+                std::ostringstream oss;
+                oss << "gaussian_" << octave * (scales_ + 3) + scale << ".ppm";
+                pyramid[octave][scale]->write(oss.str());
+            }
+        }
+
         return pyramid;
     }
 
