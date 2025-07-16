@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <map>
 #include <images/color-ppm-image.hh>
 #include <iostream>
 #include <math/vector.hh>
@@ -156,59 +157,53 @@ namespace tifo::panorama::sift
     std::vector<Match>
     DescriptorMatcher::geometric_verification(const std::vector<Match>& matches)
     {
-        if (matches.size() < 4)
-        {
+        if (matches.size() < 4) {
             return matches;
         }
 
-        std::vector<float> dx_values, dy_values;
-        for (const auto& match : matches)
-        {
-            dx_values.push_back(match.pt2.first - match.pt1.first);
-            dy_values.push_back(match.pt2.second - match.pt1.second);
-        }
+        // Bin size in pixels — tweak this based on your data
+        const int bin_size = 16;
 
-        std::sort(dx_values.begin(), dx_values.end());
-        std::sort(dy_values.begin(), dy_values.end());
-
-        float median_dx = dx_values[dx_values.size() / 2];
-        float median_dy = dy_values[dy_values.size() / 2];
-
-        std::cout << "Median displacement: " << "dx = " << median_dx
-                  << ", dy = " << median_dy << "\n";
-
-        std::vector<Match> geometrically_consistent_matches;
+        // Map from (binned dx, dy) → list of matches
+        std::map<std::pair<int, int>, std::vector<Match>> bins;
 
         for (const auto& match : matches)
         {
             float dx = match.pt2.first - match.pt1.first;
             float dy = match.pt2.second - match.pt1.second;
 
-            float dx_diff = std::abs(dx - median_dx);
-            float dy_diff = std::abs(dy - median_dy);
+            int binned_dx = static_cast<int>(std::round(dx / bin_size));
+            int binned_dy = static_cast<int>(std::round(dy / bin_size));
 
-            if (dx_diff < geometric_threshold && dy_diff < geometric_threshold)
+            bins[{binned_dx, binned_dy}].push_back(match);
+        }
+
+        // Find the bin with the most matches
+        std::pair<int, int> best_bin;
+        size_t max_bin_size = 0;
+        for (const auto& [bin, bin_matches] : bins)
+        {
+            if (bin_matches.size() > max_bin_size)
             {
-                geometrically_consistent_matches.push_back(match);
-                std::cout << "Keep match: (" << match.pt1.first << ", "
-                          << match.pt1.second << ") <--> (" << match.pt2.first
-                          << ", " << match.pt2.second << "), dx = " << dx
-                          << ", dy = " << dy << "\n";
-            }
-            else
-            {
-                std::cout << "Rejecting match: (" << match.pt1.first << ", "
-                          << match.pt1.second << ") <--> (" << match.pt2.first
-                          << ", " << match.pt2.second << "), dx = " << dx
-                          << ", dy = " << dy << "\n";
+                max_bin_size = bin_matches.size();
+                best_bin = bin;
             }
         }
 
-        std::cout << "Geometrically consistent matches: "
-                  << geometrically_consistent_matches.size() << " out of "
-                  << matches.size() << "\n";
+        // Get all matches in the best bin
+        std::vector<Match> consistent_matches = bins[best_bin];
 
-        return geometrically_consistent_matches;
+        // Optional: print dominant displacement
+        float dx_mode = best_bin.first * bin_size;
+        float dy_mode = best_bin.second * bin_size;
+        std::cout << "Dominant displacement: dx = " << dx_mode
+                << ", dy = " << dy_mode << "\n";
+
+        std::cout << "Geometrically consistent matches: "
+                << consistent_matches.size() << " out of "
+                << matches.size() << "\n";
+
+        return consistent_matches;
     }
 
     std::vector<Match>
@@ -501,19 +496,9 @@ namespace tifo::panorama::sift
         std::vector<Match> best_inliers;
         int best_inliers_count = -1;
 
-        float scale_factor1 = normalization_matrix1_(0, 0);
-        float translation_x1 = normalization_matrix1_(0, 2);
-        float translation_y1 = normalization_matrix1_(1, 2);
-
         float scale_factor2 = normalization_matrix2_(0, 0);
         float translation_x2 = normalization_matrix2_(0, 2);
         float translation_y2 = normalization_matrix2_(1, 2);
-
-        math::Matrix3 normalization_matrix1_inverse = {
-            { 1.f / scale_factor1, 0, -translation_x1 / scale_factor1 },
-            { 0, 1.f / scale_factor1, -translation_y1 / scale_factor1 },
-            { 0, 0, 1 }
-        };
 
         math::Matrix3 normalization_matrix2_inverse = {
             { 1.f / scale_factor2, 0, -translation_x2 / scale_factor2 },
@@ -668,20 +653,60 @@ namespace tifo::panorama::sift
 
     image::ColorImage*
     DescriptorMatcher::stitch(const image::ColorImage* image1,
-                              const image::ColorImage* image2)
+                            const image::ColorImage* image2)
     {
         math::Matrix3 H = compute_homography(matches_);
         std::cout << "H: " << H << "\n";
-        int image2_start = -H(0, 2);
 
-        // Fixed panorama dimensions (same as original image)
-        int pano_width = image1->get_width() + image2_start;
-        int pano_height = std::max(image1->get_height(), image2->get_height());
+        std::vector<math::Vector3> image2_corners = {
+            { 0.0f, 0.0f, 1.0f },
+            { static_cast<float>(image2->get_width()), 0.0f, 1.0f },
+            { 0.0f, static_cast<float>(image2->get_height()), 1.0f },
+            { static_cast<float>(image2->get_width()),
+            static_cast<float>(image2->get_height()), 1.0f }
+        };
+
+        std::vector<math::Vector<float, 2>> warped_corners;
+        for (const auto& pt : image2_corners)
+        {
+            math::Vector3 warped = H * pt;
+            warped_corners.push_back(
+                { warped[0] / warped[2], warped[1] / warped[2] });
+        }
+
+        float min_x = std::numeric_limits<float>::max();
+        float min_y = std::numeric_limits<float>::max();
+        float max_x = std::numeric_limits<float>::lowest();
+        float max_y = std::numeric_limits<float>::lowest();
+
+        for (const auto& pt : warped_corners)
+        {
+            std::cout << "warped corner : (" << pt[0] << ", " << pt[1] << ")\n";
+            min_x = std::min(min_x, pt[0]);
+            min_y = std::min(min_y, pt[1]);
+            max_x = std::max(max_x, pt[0]);
+            max_y = std::max(max_y, pt[1]);
+        }
+        std::vector<math::Vector<float, 2>> image1_corners = {
+            {0, 0},
+            {static_cast<float>(image1->get_width()), 0},
+            {0, static_cast<float>(image1->get_height())},
+            {static_cast<float>(image1->get_width()), static_cast<float>(image1->get_height())}
+        };
+
+        for (const auto& pt : image1_corners) {
+            min_x = std::min(min_x, pt[0]);
+            min_y = std::min(min_y, pt[1]);
+            max_x = std::max(max_x, pt[0]);
+            max_y = std::max(max_y, pt[1]);
+        }
+
+        int pano_width = static_cast<int>(std::ceil(max_x - min_x));
+        int pano_height = static_cast<int>(std::ceil(max_y - min_y));
 
         image::ColorPPMImage* panorama =
             new image::ColorPPMImage(pano_width, pano_height);
 
-        // Initialize panorama with zeros
         for (int y = 0; y < pano_height; y++)
         {
             for (int x = 0; x < pano_width; x++)
@@ -690,76 +715,75 @@ namespace tifo::panorama::sift
             }
         }
 
-        // First, place image1 directly (it stays at origin)
         for (int y = 0; y < image1->get_height(); y++)
         {
             for (int x = 0; x < image1->get_width(); x++)
             {
-                if (x < pano_width && y < pano_height)
+                int px = static_cast<int>(x);
+                int py = static_cast<int>(y);
+                if (px >= 0 && px < pano_width && py >= 0 && py < pano_height)
                 {
-                    (*panorama)(x, y) = (*image1)(x, y);
+                    (*panorama)(px, py) = (*image1)(x, y);
                 }
             }
         }
 
-        // Get inverse homography to transform from panorama to image2
         math::Matrix3 H_inv = H.inverse();
         std::cout << "H_inv: " << H_inv << "\n";
 
-        // Now iterate through panorama pixels and sample from image2 where
-        // needed
         for (int y = 0; y < pano_height; y++)
         {
             for (int x = 0; x < pano_width; x++)
             {
-                // Only process regions where image2 should contribute
-                if (x >= image2_start)
+                float pano_x = x;
+                float pano_y = y;
+
+                math::Vector3 p = H * math::Vector3({ pano_x, pano_y, 1.0f });
+                float u = p[0] / p[2];
+                float v = p[1] / p[2];
+
+                if (u >= 0 && u < image2->get_width()
+                    && v >= 0 && v < image2->get_height())
                 {
-                    // Transform panorama coordinates to image2 coordinates
-                    math::Vector3 p = H
-                        * math::Vector3({ static_cast<float>(x),
-                                          static_cast<float>(y), 1.0f });
-                    float u = p[0] / p[2];
-                    float v = p[1] / p[2];
+                    std::vector<float> pixel2 = bilinear_sample(image2, u, v);
+                    std::vector<float> current = (*panorama)(x, y);
 
-                    // Check if the transformed point is within image2 bounds
-                    if (u >= 0 && u < image2->get_width() && v >= 0
-                        && v < image2->get_height())
+                    // Blending where overlap occurs
+                    if (pano_x >= 0 && pano_x < image1->get_width())
                     {
-                        std::vector<float> pixel2 =
-                            bilinear_sample(image2, u, v);
-                        std::vector<float> current = (*panorama)(x, y);
-
-                        if (x >= image2_start && x < image1->get_width())
-                        {
-                            // Region 2: x = 300 to 700 - blend image1 and
-                            // image2
-                            float blending_factor = linear_blending(
-                                x, image1->get_width(), image2_start);
-                            (*panorama)(x, y) = {
-                                current[0] * blending_factor
-                                    + pixel2[0] * (1 - blending_factor),
-                                current[1] * blending_factor
-                                    + pixel2[1] * (1 - blending_factor),
-                                current[2] * blending_factor
-                                    + pixel2[2] * (1 - blending_factor)
-                            };
-                        }
-                        else if (x >= image2->get_width()
-                                 && x < image2_start + image1->get_width())
-                        {
-                            // Region 3: x = 700 to 1000 - only image2
-                            (*panorama)(x, y) = pixel2;
-                        }
+                        float blend = linear_blending(
+                            pano_x, image1->get_width(), 0);
+                        (*panorama)(x, y) = {
+                            current[0] * blend + pixel2[0] * (1 - blend),
+                            current[1] * blend + pixel2[1] * (1 - blend),
+                            current[2] * blend + pixel2[2] * (1 - blend)
+                        };
+                    }
+                    else
+                    {
+                        // Outside image1: only image2
+                        (*panorama)(x, y) = pixel2;
                     }
                 }
-                // Region 1: x = 0 to 300 - only image1 (already placed, do
-                // nothing)
             }
         }
 
+        int final_pano_height = pano_height;
+        bool has_non_zero = false;
+        while (!has_non_zero) {
+            for (int x = 0; x < pano_width; x++) {
+                if ((*panorama)(x, final_pano_height - 1)[0] > 0 || (*panorama)(x, final_pano_height - 1)[1] > 0 || (*panorama)(x, final_pano_height - 1)[2] > 0) {
+                    has_non_zero = true;
+                }
+            }
+            if (!has_non_zero) {
+                final_pano_height--;
+            }
+        }
+        panorama->set_height(final_pano_height);
         return panorama;
     }
+
 
     float DescriptorMatcher::linear_blending(int x, int image1_width,
                                              int image2_start)

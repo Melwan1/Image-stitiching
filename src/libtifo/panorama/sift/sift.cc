@@ -190,15 +190,12 @@ namespace tifo::panorama::sift
     std::pair<float, float>
     SIFT::compute_gradient(const image::GrayscaleImage* image, int x, int y)
     {
-        if (!image->is_valid_access(x - 1, y)
-            || !image->is_valid_access(x + 1, y)
-            || !image->is_valid_access(x, y - 1)
-            || !image->is_valid_access(x, y + 1))
-        {
-            return { 0.0f, 0.0f };
-        }
-        float dx = (*image)(x + 1, y) - (*image)(x - 1, y);
-        float dy = (*image)(x, y + 1) - (*image)(x, y - 1);
+        int x_left = std::max(0, x - 1);
+        int x_right = std::min(image->get_width() - 1, x + 1);
+        int y_up = std::max(0, y - 1);
+        int y_down = std::min(image->get_height() - 1, y + 1);
+        float dx = (*image)(x_right, y) - (*image)(x_left, y);
+        float dy = (*image)(x, y_down) - (*image)(x, y_up);
 
         float magnitude = std::sqrt(dx * dx + dy * dy);
         float orientation = std::atan2(dy, dx);
@@ -400,10 +397,13 @@ namespace tifo::panorama::sift
             {
                 const image::GrayscaleImage* current =
                     dog_pyramid[octave][scale];
-
-                for (int y = 1; y < current->get_height() - 1; y++)
+                int min_x = (scale > 0) ? 0 : 1;
+                int max_x = (scale < scales_ + 1) ? current->get_width() : current->get_width() - 1;
+                int min_y = (scale > 0) ? 0 : 1;
+                int max_y = (scale < scales_ + 1) ? current->get_height() : current->get_height() - 1;
+                for (int y = min_y; y < max_y; y++)
                 {
-                    for (int x = 1; x < current->get_width() - 1; x++)
+                    for (int x = min_x; x < max_x; x++)
                     {
                         if (std::abs((*current)(x, y)) > contrast_threshold_
                             && is_extremum(dog_pyramid, octave, scale, x, y))

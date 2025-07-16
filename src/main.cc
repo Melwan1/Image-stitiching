@@ -14,42 +14,47 @@ int main()
     tifo::panorama::sift::SIFT sift;
 
     tifo::image::ColorPPMImage bedroom2, bedroom1;
-    bedroom2.read("test1.ppm");
-    bedroom1.read("test2.ppm");
+    bedroom2.read("tests/front_01.ppm");
+    bedroom1.read("tests/front_02.ppm");
 
     std::cout << "Detecting SIFT features...\n";
     auto keypoints1 = sift.detect_and_compute(bedroom2.to_grayscale());
 
-    for (const auto& keypoint : keypoints1)
+    /*for (const auto& keypoint : keypoints1)
     {
         for (int dx = -1; dx <= 1; dx++)
         {
             for (int dy = -1; dy <= 1; dy++)
             {
-                bedroom2(keypoint.x + dx, keypoint.y + dy)[0] = 1;
-                bedroom2(keypoint.x + dx, keypoint.y + dy)[1] = 0;
-                bedroom2(keypoint.x + dx, keypoint.y + dy)[2] = 1;
+                if (bedroom2.is_valid_access(keypoint.x + dx, keypoint.y + dy)) {
+                    bedroom2(keypoint.x + dx, keypoint.y + dy)[0] = 1;
+                    bedroom2(keypoint.x + dx, keypoint.y + dy)[1] = 0;
+                    bedroom2(keypoint.x + dx, keypoint.y + dy)[2] = 1;
+                }
             }
         }
     }
-    bedroom2.write("bedroom2_kp.ppm");
+    bedroom2.write("front_01_kp.ppm");*/
 
     auto keypoints2 = sift.detect_and_compute(bedroom1.to_grayscale());
 
-    for (const auto& keypoint : keypoints2)
+    /*for (const auto& keypoint : keypoints2)
     {
         for (int dx = -1; dx <= 1; dx++)
         {
             for (int dy = -1; dy <= 1; dy++)
             {
-                bedroom1(keypoint.x + dx, keypoint.y + dy)[0] = 1;
-                bedroom1(keypoint.x + dx, keypoint.y + dy)[1] = 0;
-                bedroom1(keypoint.x + dx, keypoint.y + dy)[2] = 0;
+                if (bedroom1.is_valid_access(keypoint.x + dx, keypoint.y + dy)) {
+
+                    bedroom1(keypoint.x + dx, keypoint.y + dy)[0] = 1;
+                    bedroom1(keypoint.x + dx, keypoint.y + dy)[1] = 0;
+                    bedroom1(keypoint.x + dx, keypoint.y + dy)[2] = 0;
+                }
             }
         }
     }
 
-    bedroom1.write("bedroom1_kp.ppm");
+    bedroom1.write("front_02_kp.ppm");*/
 
     tifo::panorama::sift::DescriptorMatcher matcher;
     std::vector<tifo::panorama::sift::Match> matches =

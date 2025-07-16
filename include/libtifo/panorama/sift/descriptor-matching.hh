@@ -84,7 +84,6 @@ namespace tifo::panorama::sift
 
         float ratio_threshold = 0.7f;
         float max_descriptor_distance = 0.15f;
-        float geometric_threshold = 50.0f;
     };
 
 } // namespace tifo::panorama::sift
