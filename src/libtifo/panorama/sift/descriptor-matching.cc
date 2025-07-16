@@ -673,6 +673,11 @@ namespace tifo::panorama::sift
             warped_corners.push_back(
                 { warped[0] / warped[2], warped[1] / warped[2] });
         }
+        float blend_start_x = std::max(warped_corners[0][0], 0.0f);  // left edge of image 2 
+        float blend_end_x = std::min(warped_corners[1][0], static_cast<float>(image1->get_width()));  // right edge of image 1
+
+        if (blend_start_x > blend_end_x)
+            std::swap(blend_start_x, blend_end_x);
 
         float min_x = std::numeric_limits<float>::max();
         float min_y = std::numeric_limits<float>::max();
@@ -735,10 +740,7 @@ namespace tifo::panorama::sift
         {
             for (int x = 0; x < pano_width; x++)
             {
-                float pano_x = x;
-                float pano_y = y;
-
-                math::Vector3 p = H * math::Vector3({ pano_x, pano_y, 1.0f });
+                math::Vector3 p = H * math::Vector3({ static_cast<float>(x), static_cast<float>(y), 1.0f });
                 float u = p[0] / p[2];
                 float v = p[1] / p[2];
 
@@ -749,10 +751,12 @@ namespace tifo::panorama::sift
                     std::vector<float> current = (*panorama)(x, y);
 
                     // Blending where overlap occurs
-                    if (pano_x >= 0 && pano_x < image1->get_width())
+                    if (x < blend_end_x)
                     {
+                        std::cout << "blending at (" << x << ", " << y;
                         float blend = linear_blending(
-                            pano_x, image1->get_width(), 0);
+                            x, blend_start_x, blend_end_x);
+                        std::cout << "of factor " << blend << "\n";
                         (*panorama)(x, y) = {
                             current[0] * blend + pixel2[0] * (1 - blend),
                             current[1] * blend + pixel2[1] * (1 - blend),
@@ -761,6 +765,7 @@ namespace tifo::panorama::sift
                     }
                     else
                     {
+                        std::cout << "taking only pixel 2 at (" << x << ", " << y << "\n";
                         // Outside image1: only image2
                         (*panorama)(x, y) = pixel2;
                     }
@@ -781,7 +786,48 @@ namespace tifo::panorama::sift
             }
         }
         panorama->set_height(final_pano_height);
+
+        double total_error = 0.0;
+        double total_squared_error = 0.0;
+        int overlap_pixel_count = 0;
+        for (int y = 0; y < final_pano_height; y++) {
+            for (int x = 0; x < pano_width; x++) {
+                math::Vector3 point = H * math::Vector3({ static_cast<float>(x), static_cast<float>(y), 1.0f });
+                float u = point[0] / point[2];
+                float v = point[1] / point[2];
+                bool inside_image2 = image2->is_valid_access(u, v);
+                bool inside_image1 = image1->is_valid_access(x, y);
+
+                if (inside_image1 && inside_image2)
+                {
+                    std::vector<float> pixel1 = (*image1)(x, y);
+                    std::vector<float> pixel2 = bilinear_sample(image2, u, v);
+
+                    for (int channel = 0; channel < 3; channel++)
+                    {
+                        float diff = pixel1[channel] - pixel2[channel];
+                        total_error += std::abs(diff);
+                        total_squared_error += diff * diff;
+                    }
+                    overlap_pixel_count++;
+                }
+            }
+        }
+        if (overlap_pixel_count > 0)
+        {
+            double mae = total_error / (overlap_pixel_count * 3.0);
+            double rmse = std::sqrt(total_squared_error / (overlap_pixel_count * 3.0));
+
+            std::cout << "Overlap MAE: " << mae << "\n";
+            std::cout << "Overlap RMSE: " << rmse << "\n";
+        }
+        else
+        {
+            std::cout << "No overlapping pixels found!\n";
+        }
+
         return panorama;
+
     }
 
 
@@ -794,8 +840,8 @@ namespace tifo::panorama::sift
         }
         if (x < image1_width)
         {
-            return static_cast<float>(image1_width - x)
-                / static_cast<float>(image1_width - image2_start);
+            return std::clamp(static_cast<float>(image1_width - x)
+                / static_cast<float>(image1_width - image2_start), 0.0f, 1.0f);
         }
         return 0.;
     }
