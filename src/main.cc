@@ -6,6 +6,7 @@
 #include <panorama/cutter/overlap-rectangular-cutter.hh>
 #include <panorama/sift/descriptor-matching.hh>
 #include <panorama/sift/sift.hh>
+#include <filters/sobel.hh>
 
 int main()
 {
@@ -62,6 +63,10 @@ int main()
     tifo::image::ColorImage* final_result =
         matcher.stitch(&bedroom2, &bedroom1);
     final_result->write("final.ppm");
+
+    tifo::filter::Sobel sobel;
+    tifo::image::GrayscaleImage* grayscale_sobel = sobel.apply_on_image(final_result->to_grayscale());
+    grayscale_sobel->write("sobel.ppm");
 
     return 0;
 }
