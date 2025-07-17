@@ -651,55 +651,34 @@ namespace tifo::panorama::sift
         return result;
     }
 
-    image::ColorImage*
-    DescriptorMatcher::stitch(const image::ColorImage* image1,
-                            const image::ColorImage* image2)
+    image::ColorImage* DescriptorMatcher::stitch(const image::ColorImage* image1,
+                                                const image::ColorImage* image2)
     {
         math::Matrix3 H = compute_homography(matches_);
         std::cout << "H: " << H << "\n";
 
         std::vector<math::Vector3> image2_corners = {
-            { 0.0f, 0.0f, 1.0f },
-            { static_cast<float>(image2->get_width()), 0.0f, 1.0f },
-            { 0.0f, static_cast<float>(image2->get_height()), 1.0f },
-            { static_cast<float>(image2->get_width()),
-            static_cast<float>(image2->get_height()), 1.0f }
+            {0.0f, 0.0f, 1.0f},
+            {static_cast<float>(image2->get_width()), 0.0f, 1.0f},
+            {0.0f, static_cast<float>(image2->get_height()), 1.0f},
+            {static_cast<float>(image2->get_width()), static_cast<float>(image2->get_height()), 1.0f}
         };
+
+        math::Matrix3 H_inv = H.inverse();
 
         std::vector<math::Vector<float, 2>> warped_corners;
         for (const auto& pt : image2_corners)
         {
-            math::Vector3 warped = H * pt;
-            warped_corners.push_back(
-                { warped[0] / warped[2], warped[1] / warped[2] });
+            math::Vector3 warped = H_inv * pt;
+            warped_corners.push_back({warped[0] / warped[2], warped[1] / warped[2]});
         }
-        float blend_start_x = std::max(warped_corners[0][0], 0.0f);  // left edge of image 2 
-        float blend_end_x = std::min(warped_corners[1][0], static_cast<float>(image1->get_width()));  // right edge of image 1
 
-        if (blend_start_x > blend_end_x)
-            std::swap(blend_start_x, blend_end_x);
-
-        float min_x = std::numeric_limits<float>::max();
-        float min_y = std::numeric_limits<float>::max();
-        float max_x = std::numeric_limits<float>::lowest();
-        float max_y = std::numeric_limits<float>::lowest();
+        float min_x = 0.0f, min_y = 0.0f;
+        float max_x = static_cast<float>(image1->get_width());
+        float max_y = static_cast<float>(image1->get_height());
 
         for (const auto& pt : warped_corners)
         {
-            std::cout << "warped corner : (" << pt[0] << ", " << pt[1] << ")\n";
-            min_x = std::min(min_x, pt[0]);
-            min_y = std::min(min_y, pt[1]);
-            max_x = std::max(max_x, pt[0]);
-            max_y = std::max(max_y, pt[1]);
-        }
-        std::vector<math::Vector<float, 2>> image1_corners = {
-            {0, 0},
-            {static_cast<float>(image1->get_width()), 0},
-            {0, static_cast<float>(image1->get_height())},
-            {static_cast<float>(image1->get_width()), static_cast<float>(image1->get_height())}
-        };
-
-        for (const auto& pt : image1_corners) {
             min_x = std::min(min_x, pt[0]);
             min_y = std::min(min_y, pt[1]);
             max_x = std::max(max_x, pt[0]);
@@ -709,88 +688,69 @@ namespace tifo::panorama::sift
         int pano_width = static_cast<int>(std::ceil(max_x - min_x));
         int pano_height = static_cast<int>(std::ceil(max_y - min_y));
 
-        image::ColorPPMImage* panorama =
-            new image::ColorPPMImage(pano_width, pano_height);
+        image::ColorPPMImage* panorama = new image::ColorPPMImage(pano_width, pano_height);
+
+        float blend_start_x = std::max(warped_corners[0][0], 0.0f);
+        float blend_end_x = std::min(static_cast<float>(image1->get_width()), warped_corners[1][0]);
+
+        if (blend_start_x > blend_end_x)
+            std::swap(blend_start_x, blend_end_x);
 
         for (int y = 0; y < pano_height; y++)
         {
             for (int x = 0; x < pano_width; x++)
             {
-                (*panorama)(x, y) = { 0.0f, 0.0f, 0.0f };
-            }
-        }
+                float pano_x = x + min_x;
+                float pano_y = y + min_y;
 
-        for (int y = 0; y < image1->get_height(); y++)
-        {
-            for (int x = 0; x < image1->get_width(); x++)
-            {
-                int px = static_cast<int>(x);
-                int py = static_cast<int>(y);
-                if (px >= 0 && px < pano_width && py >= 0 && py < pano_height)
+                math::Vector3 pt = H * math::Vector3({pano_x, pano_y, 1.0f});
+                float u = pt[0] / pt[2];
+                float v = pt[1] / pt[2];
+
+                bool inside_image1 = (pano_x >= 0 && pano_x < image1->get_width() && pano_y >= 0 && pano_y < image1->get_height());
+                bool inside_image2 = (u >= 0 && u < image2->get_width() && v >= 0 && v < image2->get_height());
+
+                if (inside_image1 && inside_image2)
                 {
-                    (*panorama)(px, py) = (*image1)(x, y);
-                }
-            }
-        }
-
-        math::Matrix3 H_inv = H.inverse();
-        std::cout << "H_inv: " << H_inv << "\n";
-
-        for (int y = 0; y < pano_height; y++)
-        {
-            for (int x = 0; x < pano_width; x++)
-            {
-                math::Vector3 p = H * math::Vector3({ static_cast<float>(x), static_cast<float>(y), 1.0f });
-                float u = p[0] / p[2];
-                float v = p[1] / p[2];
-
-                if (u >= 0 && u < image2->get_width()
-                    && v >= 0 && v < image2->get_height())
-                {
+                    std::vector<float> pixel1 = bilinear_sample(image1, pano_x, pano_y);
                     std::vector<float> pixel2 = bilinear_sample(image2, u, v);
-                    std::vector<float> current = (*panorama)(x, y);
 
-                    // Blending where overlap occurs
-                    if (x < blend_end_x)
+                    if (pano_x >= blend_start_x && pano_x <= blend_end_x)
                     {
-                        std::cout << "blending at (" << x << ", " << y;
-                        float blend = linear_blending(
-                            x, blend_start_x, blend_end_x);
-                        std::cout << "of factor " << blend << "\n";
+                        float blending = linear_blending(pano_x, blend_end_x, blend_start_x);
                         (*panorama)(x, y) = {
-                            current[0] * blend + pixel2[0] * (1 - blend),
-                            current[1] * blend + pixel2[1] * (1 - blend),
-                            current[2] * blend + pixel2[2] * (1 - blend)
+                            pixel1[0] * blending + pixel2[0] * (1 - blending),
+                            pixel1[1] * blending + pixel2[1] * (1 - blending),
+                            pixel1[2] * blending + pixel2[2] * (1 - blending)
                         };
+                    }
+                    else if (pano_x < blend_start_x)
+                    {
+                        (*panorama)(x, y) = pixel1;
                     }
                     else
                     {
-                        std::cout << "taking only pixel 2 at (" << x << ", " << y << "\n";
-                        // Outside image1: only image2
                         (*panorama)(x, y) = pixel2;
                     }
                 }
-            }
-        }
-
-        int final_pano_height = pano_height;
-        bool has_non_zero = false;
-        while (!has_non_zero) {
-            for (int x = 0; x < pano_width; x++) {
-                if ((*panorama)(x, final_pano_height - 1)[0] > 0 || (*panorama)(x, final_pano_height - 1)[1] > 0 || (*panorama)(x, final_pano_height - 1)[2] > 0) {
-                    has_non_zero = true;
+                else if (inside_image1)
+                {
+                    (*panorama)(x, y) = bilinear_sample(image1, pano_x, pano_y);
+                }
+                else if (inside_image2)
+                {
+                    (*panorama)(x, y) = bilinear_sample(image2, u, v);
+                }
+                else
+                {
+                    (*panorama)(x, y) = {0.0f, 0.0f, 0.0f};
                 }
             }
-            if (!has_non_zero) {
-                final_pano_height--;
-            }
         }
-        panorama->set_height(final_pano_height);
-
         double total_error = 0.0;
         double total_squared_error = 0.0;
         int overlap_pixel_count = 0;
-        for (int y = 0; y < final_pano_height; y++) {
+        for (int y = 0; y < pano_height; y++) {
             for (int x = 0; x < pano_width; x++) {
                 math::Vector3 point = H * math::Vector3({ static_cast<float>(x), static_cast<float>(y), 1.0f });
                 float u = point[0] / point[2];
@@ -798,13 +758,11 @@ namespace tifo::panorama::sift
                 bool inside_image2 = image2->is_valid_access(u, v);
                 bool inside_image1 = image1->is_valid_access(x, y);
 
-                if (inside_image1 && inside_image2)
-                {
+                if (inside_image1 && inside_image2) {
                     std::vector<float> pixel1 = (*image1)(x, y);
                     std::vector<float> pixel2 = bilinear_sample(image2, u, v);
 
-                    for (int channel = 0; channel < 3; channel++)
-                    {
+                    for (int channel = 0; channel < 3; channel++) {
                         float diff = pixel1[channel] - pixel2[channel];
                         total_error += std::abs(diff);
                         total_squared_error += diff * diff;
@@ -813,23 +771,44 @@ namespace tifo::panorama::sift
                 }
             }
         }
-        if (overlap_pixel_count > 0)
-        {
+        if (overlap_pixel_count > 0) {
             double mae = total_error / (overlap_pixel_count * 3.0);
             double rmse = std::sqrt(total_squared_error / (overlap_pixel_count * 3.0));
 
             std::cout << "Overlap MAE: " << mae << "\n";
             std::cout << "Overlap RMSE: " << rmse << "\n";
         }
-        else
-        {
-            std::cout << "No overlapping pixels found!\n";
+        else {
+            std::cout << "No overlap found\n";
         }
 
+        float total_gradient = 0.0f;
+        int gradient_pixel_count = 0;
+
+        for (int y = 0; y < pano_height; ++y) {
+            for (int x = static_cast<int>(blend_start_x); x < static_cast<int>(blend_end_x) - 1; ++x) {
+                std::vector<float> color1 = (*panorama)(x, y);
+                std::vector<float> color2 = (*panorama)(x + 1, y);
+
+                float intensity1 = 0.299f * color1[0] + 0.587f * color1[1] + 0.114f * color1[2];
+                float intensity2 = 0.299f * color2[0] + 0.587f * color2[1] + 0.114f * color2[2];
+
+                float gradient = std::abs(intensity2 - intensity1);
+
+                total_gradient += gradient;
+                gradient_pixel_count++;
+            }
+        }
+        if (gradient_pixel_count > 0) {
+            float avg_gradient = total_gradient / static_cast<float>(gradient_pixel_count);
+            std::cout << "Average seam gradient: " << avg_gradient << "\n";
+        } else {
+            std::cout << "No gradient pixels in blend region.\n";
+        }
+
+
         return panorama;
-
     }
-
 
     float DescriptorMatcher::linear_blending(int x, int image1_width,
                                              int image2_start)
