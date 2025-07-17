@@ -12,13 +12,25 @@ namespace tifo::filter
     Filter<ElementType, size>::Filter(
         const math::SquaredMatrix<ElementType, size>& matrix)
         : matrix_(matrix)
-    {}
+    {
+        double sum = 0;
+        for (int y = 0; y < static_cast<int>(size); y++)
+        {
+            for (int x = 0; x < static_cast<int>(size); x++)
+            {
+                sum += matrix_(y, x);
+            }
+        }
+        if (std::fabs(sum) > std::numeric_limits<double>::epsilon())
+        {
+            matrix_ *= (1.0 / sum);
+        }
+    }
 
     template <typename ElementType, unsigned size>
     image::GrayscaleImage* Filter<ElementType, size>::apply_on_image(
         const image::GrayscaleImage* input_image)
     {
-        std::cout << matrix_ << "\n";
         if (!input_image)
         {
             return nullptr;
@@ -32,7 +44,8 @@ namespace tifo::filter
             for (int x = 0; x < input_image->get_width(); x++)
             {
                 if (y < half_size || y >= input_image->get_height() - half_size
-                    || x < half_size || x >= input_image->get_width())
+                    || x < half_size
+                    || x >= input_image->get_width() - half_size)
                 {
                     result_image
                         ->get_pixels()[y * result_image->get_width() + x] = 0;
@@ -54,7 +67,7 @@ namespace tifo::filter
                     sum *= -1;
                 }
                 result_image->get_pixels()[y * result_image->get_width() + x] =
-                    sum / (size * size);
+                    sum;
             }
         }
         return result_image;

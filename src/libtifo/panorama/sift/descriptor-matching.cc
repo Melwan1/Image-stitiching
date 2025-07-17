@@ -1,0 +1,828 @@
+#include <algorithm>
+#include <map>
+#include <images/color-ppm-image.hh>
+#include <iostream>
+#include <math/vector.hh>
+#include <panorama/sift/descriptor-matching.hh>
+#include <random>
+#include <unordered_set>
+
+namespace tifo::panorama::sift
+{
+
+    float DescriptorMatcher::descriptor_distance(
+        const std::vector<float>& descriptor1,
+        const std::vector<float>& descriptor2)
+    {
+        float distance = 0.0f;
+        for (unsigned i = 0; i < descriptor1.size(); i++)
+        {
+            float difference = descriptor1[i] - descriptor2[i];
+            distance += difference * difference;
+        }
+        return std::sqrt(distance);
+    }
+
+    std::pair<int, int> DescriptorMatcher::find_two_nearest_neighbors(
+        const std::vector<float>& query_desc,
+        const std::vector<KeyPoint>& target_keypoints)
+    {
+        float min_dist1 = 1000.0f;
+        float min_dist2 = 1000.0f;
+        int best_idx = -1;
+        int second_best_idx = -1;
+        for (unsigned i = 0; i < target_keypoints.size(); i++)
+        {
+            float distance =
+                descriptor_distance(query_desc, target_keypoints[i].descriptor);
+            if (distance < min_dist1)
+            {
+                min_dist2 = min_dist1;
+                second_best_idx = best_idx;
+                min_dist1 = distance;
+                best_idx = i;
+            }
+            else if (distance < min_dist2)
+            {
+                min_dist2 = distance;
+                second_best_idx = i;
+            }
+        }
+
+        return std::make_pair(best_idx, second_best_idx);
+    }
+
+    std::vector<Match>
+    DescriptorMatcher::forward_matching(const std::vector<KeyPoint>& keypoints1,
+                                        const std::vector<KeyPoint>& keypoints2)
+    {
+        std::vector<Match> matches;
+
+        for (unsigned i = 0; i < keypoints1.size(); i++)
+        {
+            auto [best_idx, second_best_idx] = find_two_nearest_neighbors(
+                keypoints1[i].descriptor, keypoints2);
+            if (best_idx == -1 || second_best_idx == -1)
+            {
+                continue;
+            }
+
+            float best_dist = descriptor_distance(
+                keypoints1[i].descriptor, keypoints2[best_idx].descriptor);
+            float second_best_dist =
+                descriptor_distance(keypoints1[i].descriptor,
+                                    keypoints2[second_best_idx].descriptor);
+
+            if (best_dist < ratio_threshold * second_best_dist
+                && best_dist < max_descriptor_distance)
+            {
+                Match match;
+                match.idx1 = i;
+                match.idx2 = best_idx;
+                match.distance = best_dist;
+                match.pt1 = { keypoints1[i].x, keypoints1[i].y };
+                match.pt2 = { keypoints2[best_idx].x, keypoints2[best_idx].y };
+                matches.push_back(match);
+            }
+        }
+        return matches;
+    }
+    std::vector<Match> DescriptorMatcher::backward_matching(
+        const std::vector<KeyPoint>& keypoints1,
+        const std::vector<KeyPoint>& keypoints2)
+    {
+        std::vector<Match> matches;
+
+        for (unsigned i = 0; i < keypoints2.size(); i++)
+        {
+            auto [best_idx, second_best_idx] = find_two_nearest_neighbors(
+                keypoints2[i].descriptor, keypoints1);
+            if (best_idx == -1 || second_best_idx == -1)
+            {
+                continue;
+            }
+
+            float best_dist = descriptor_distance(
+                keypoints2[i].descriptor, keypoints1[best_idx].descriptor);
+            float second_best_dist =
+                descriptor_distance(keypoints2[i].descriptor,
+                                    keypoints1[second_best_idx].descriptor);
+
+            if (best_dist < ratio_threshold * second_best_dist
+                && best_dist < max_descriptor_distance)
+            {
+                Match match;
+                match.idx1 = best_idx;
+                match.idx2 = i;
+                match.distance = best_dist;
+                match.pt1 = { keypoints1[best_idx].x, keypoints1[best_idx].y };
+                match.pt2 = { keypoints2[i].x, keypoints2[i].y };
+                matches.push_back(match);
+            }
+        }
+        return matches;
+    }
+
+    std::vector<Match> DescriptorMatcher::cross_check_matching(
+        const std::vector<KeyPoint>& keypoints1,
+        const std::vector<KeyPoint>& keypoints2)
+    {
+        std::vector<Match> forward_matches =
+            forward_matching(keypoints1, keypoints2);
+        std::vector<Match> backward_matches =
+            backward_matching(keypoints1, keypoints2);
+        std::vector<Match> cross_checked_matches;
+
+        for (const auto& forward_match : forward_matches)
+        {
+            for (const auto& backward_match : backward_matches)
+            {
+                if (forward_match.idx1 == backward_match.idx1
+                    && forward_match.idx2 == backward_match.idx2)
+                {
+                    cross_checked_matches.push_back(forward_match);
+                    break;
+                }
+            }
+        }
+
+        std::cout << "Forward matches: " << forward_matches.size() << "\n";
+        std::cout << "Backward matches: " << backward_matches.size() << "\n";
+        std::cout << "Cross-checked matches: " << cross_checked_matches.size()
+                  << "\n";
+
+        return cross_checked_matches;
+    }
+
+    std::vector<Match>
+    DescriptorMatcher::geometric_verification(const std::vector<Match>& matches)
+    {
+        if (matches.size() < 4) {
+            return matches;
+        }
+
+        // Bin size in pixels — tweak this based on your data
+        const int bin_size = 16;
+
+        // Map from (binned dx, dy) → list of matches
+        std::map<std::pair<int, int>, std::vector<Match>> bins;
+
+        for (const auto& match : matches)
+        {
+            float dx = match.pt2.first - match.pt1.first;
+            float dy = match.pt2.second - match.pt1.second;
+
+            int binned_dx = static_cast<int>(std::round(dx / bin_size));
+            int binned_dy = static_cast<int>(std::round(dy / bin_size));
+
+            bins[{binned_dx, binned_dy}].push_back(match);
+        }
+
+        // Find the bin with the most matches
+        std::pair<int, int> best_bin;
+        size_t max_bin_size = 0;
+        for (const auto& [bin, bin_matches] : bins)
+        {
+            if (bin_matches.size() > max_bin_size)
+            {
+                max_bin_size = bin_matches.size();
+                best_bin = bin;
+            }
+        }
+
+        // Get all matches in the best bin
+        std::vector<Match> consistent_matches = bins[best_bin];
+
+        // Optional: print dominant displacement
+        float dx_mode = best_bin.first * bin_size;
+        float dy_mode = best_bin.second * bin_size;
+        std::cout << "Dominant displacement: dx = " << dx_mode
+                << ", dy = " << dy_mode << "\n";
+
+        std::cout << "Geometrically consistent matches: "
+                << consistent_matches.size() << " out of "
+                << matches.size() << "\n";
+
+        return consistent_matches;
+    }
+
+    std::vector<Match>
+    DescriptorMatcher::robust_matching(const std::vector<KeyPoint>& keypoints1,
+                                       const std::vector<KeyPoint>& keypoints2)
+    {
+        std::cout << "=== ROBUST SIFT MATCHING PIPELINE ===\n";
+        std::cout << "Keypoints1: " << keypoints1.size()
+                  << ", Keypoints2: " << keypoints2.size() << "\n";
+        std::vector<Match> cross_checked =
+            cross_check_matching(keypoints1, keypoints2);
+        std::vector<Match> final_matches =
+            geometric_verification(cross_checked);
+        std::cout << "Final matches: " << final_matches.size() << "\n";
+
+        keypoints1_ = keypoints1;
+        keypoints2_ = keypoints2;
+
+        matches_ = final_matches;
+
+        compute_point_normalization();
+
+        return final_matches;
+    }
+
+    std::vector<Match> DescriptorMatcher::match_descriptors(
+        const std::vector<KeyPoint>& keypoints1,
+        const std::vector<KeyPoint>& keypoints2, float ratio_threshold)
+    {
+        std::vector<Match> matches;
+
+        for (unsigned i = 0; i < keypoints1.size(); i++)
+        {
+            const auto& desc1 = keypoints1[i].descriptor;
+
+            float best_distance = std::numeric_limits<float>::max();
+            float second_best_distance = std::numeric_limits<float>::max();
+            int best_idx = -1;
+
+            for (unsigned j = 0; j < keypoints2.size(); j++)
+            {
+                const auto& desc2 = keypoints2[j].descriptor;
+                float distance = descriptor_distance(desc1, desc2);
+
+                if (distance < best_distance)
+                {
+                    second_best_distance = best_distance;
+                    best_distance = distance;
+                    best_idx = j;
+                }
+                else if (distance < second_best_distance)
+                {
+                    second_best_distance = distance;
+                }
+            }
+
+            // Lowe's ratio test
+            if (best_distance < ratio_threshold * second_best_distance
+                && best_distance <= 0.12)
+            {
+                matches.emplace_back(
+                    Match(static_cast<int>(i), best_idx, best_distance,
+                          { keypoints1[i].x, keypoints1[i].y },
+                          { keypoints2[best_idx].x, keypoints2[best_idx].y }));
+            }
+        }
+
+        for (const auto& match : matches)
+        {
+            auto& kp1 = keypoints1[match.idx1];
+            auto& kp2 = keypoints2[match.idx2];
+            std::cout << "Match: (" << kp1.x << ", " << kp1.y << ") <-> ("
+                      << kp2.x << ", " << kp2.y
+                      << "), dist = " << match.distance << '\n';
+        }
+        keypoints1_ = keypoints1;
+        keypoints2_ = keypoints2;
+        matches_ = matches;
+
+        compute_point_normalization();
+
+        return matches;
+    }
+
+    std::vector<Match>
+    DescriptorMatcher::random_pick(const std::vector<Match>& matches)
+    {
+        std::unordered_set<int> indices;
+        std::random_device rd;
+        (void)rd;
+        std::mt19937 gen(2);
+        std::uniform_int_distribution<> dist(0, matches.size() - 1);
+
+        while (indices.size() < 4)
+        {
+            indices.insert(dist(gen));
+        }
+        std::vector<Match> result;
+        for (int index : indices)
+        {
+            result.push_back(matches[index]);
+        }
+        return result;
+    }
+
+    const math::Matrix3 DescriptorMatcher::compute_homography_minimal_DLT(
+        const std::vector<Match>& random_sample)
+    {
+        std::vector<std::vector<double>> A;
+        for (unsigned index = 0; index < random_sample.size(); index++)
+        {
+            math::Vector3 p1_normalized = normalization_matrix1_
+                * math::Vector3({ keypoints1_[random_sample[index].idx1].x,
+                                  keypoints1_[random_sample[index].idx1].y,
+                                  1 });
+            math::Vector3 p2_normalized = normalization_matrix2_
+                * math::Vector3({ keypoints2_[random_sample[index].idx2].x,
+                                  keypoints2_[random_sample[index].idx2].y,
+                                  1 });
+            double x = p1_normalized[0];
+            double y = p1_normalized[1];
+            double xp = p2_normalized[0];
+            double yp = p2_normalized[1];
+
+            A.push_back({ x, y, 1, 0, 0, 0, -x * xp, -y * xp, -xp });
+            A.push_back({ 0, 0, 0, x, y, 1, -x * yp, -y * yp, -yp });
+        }
+
+        math::SquaredMatrix<double, 9> AtA;
+        for (int index = 0; index < 9; index++)
+        {
+            for (int sub_index = 0; sub_index < 9; sub_index++)
+            {
+                AtA(index, sub_index) = 0;
+            }
+        }
+        for (const auto& row : A)
+        {
+            for (int i = 0; i < 9; i++)
+            {
+                for (int j = 0; j < 9; j++)
+                {
+                    AtA(i, j) += row[i] * row[j];
+                }
+            }
+        }
+        math::Vector<double, 9> h;
+        for (int i = 0; i < 9; i++)
+        {
+            h[i] = (i == 0) ? 1.0 : 0.0;
+        }
+        h = h.normalize();
+
+        // Increase lambda for better numerical stability
+        double lambda = 1e-1;
+        math::SquaredMatrix<double, 9> AtA_shifted = AtA;
+        for (unsigned i = 0; i < 9; i++)
+        {
+            AtA_shifted(i, i) += lambda;
+        }
+
+        math::SquaredMatrix<double, 9> inv = AtA_shifted.inverse();
+
+        // More iterations and convergence check
+        for (int iter = 0; iter < 1000; iter++)
+        {
+            math::Vector<double, 9> h_old = h;
+
+            // Apply inverse matrix
+            math::Vector<double, 9> h_new;
+            for (int i = 0; i < 9; i++)
+            {
+                h_new[i] = 0;
+                for (int j = 0; j < 9; j++)
+                {
+                    h_new[i] += inv(i, j) * h[j];
+                }
+            }
+
+            h_new = h_new.normalize();
+
+            // Check convergence
+            double diff = 0;
+            for (int i = 0; i < 9; i++)
+            {
+                diff += (h_new[i] - h_old[i]) * (h_new[i] - h_old[i]);
+            }
+            if (sqrt(diff) < 1e-10)
+                break;
+
+            h = h_new;
+        }
+
+        math::Matrix3 H;
+        for (int i = 0; i < 9; i++)
+        {
+            H(i / 3, i % 3) = h[i] / h[8]; // normalization
+        }
+        std::cout << "H:\n" << H << "\n";
+
+        return H;
+    }
+
+    const math::Matrix3 DescriptorMatcher::compute_homography_full_DLT(
+        const std::vector<Match>& inliers)
+    {
+        std::vector<std::vector<double>> A;
+
+        for (const auto& match : inliers)
+        {
+            math::Vector3 p1 = normalization_matrix1_
+                * math::Vector3({ keypoints1_[match.idx1].x,
+                                  keypoints1_[match.idx1].y, 1 });
+            math::Vector3 p2 = normalization_matrix2_
+                * math::Vector3({ keypoints2_[match.idx2].x,
+                                  keypoints2_[match.idx2].y, 1 });
+            double x = p1[0];
+            double y = p1[1];
+            double xp = p2[0];
+            double yp = p2[1];
+
+            A.push_back({ x, y, 1, 0, 0, 0, -x * xp, -y * xp, -xp });
+            A.push_back({ 0, 0, 0, x, y, 1, -x * yp, -y * yp, -yp });
+        }
+
+        math::SquaredMatrix<double, 9> AtA;
+        for (const auto& row : A)
+        {
+            for (int i = 0; i < 9; i++)
+            {
+                for (int j = 0; j < 9; j++)
+                {
+                    AtA(i, j) += row[i] * row[j];
+                }
+            }
+        }
+
+        math::Vector<double, 9> h;
+        for (int i = 0; i < 9; i++)
+        {
+            h[i] = 1.0;
+        }
+        h = h.normalize();
+
+        double lambda = 1e-3;
+        math::SquaredMatrix<double, 9> AtA_shifted = AtA;
+        for (unsigned i = 0; i < 9; i++)
+        {
+            AtA_shifted(i, i) += lambda;
+        }
+
+        math::SquaredMatrix<double, 9> inv = AtA_shifted.inverse();
+
+        for (int iter = 0; iter < 100; iter++)
+        {
+            math::Vector<double, 9> h_new;
+            for (int i = 0; i < 9; i++)
+            {
+                h_new[i] = 0;
+                for (int j = 0; j < 9; j++)
+                {
+                    h_new[i] += inv(i, j) * h[j];
+                }
+            }
+            h = h_new.normalize();
+        }
+
+        math::Matrix3 H;
+        for (int i = 0; i < 9; i++)
+        {
+            H(i / 3, i % 3) = h[i] / h[8];
+        }
+
+        // std::cout << "final H " << H << "\n";
+
+        return H;
+    }
+
+    std::pair<float, float>
+    DescriptorMatcher::apply_homography(const math::Matrix3& homography,
+                                        const math::Vector3& normalized_point)
+    {
+        math::Vector3 result = homography * normalized_point;
+        return { result[0] / result[2], result[1] / result[2] };
+    }
+
+    math::Matrix3
+    DescriptorMatcher::compute_homography(const std::vector<Match>& matches)
+    {
+        std::vector<Match> best_inliers;
+        int best_inliers_count = -1;
+
+        float scale_factor2 = normalization_matrix2_(0, 0);
+        float translation_x2 = normalization_matrix2_(0, 2);
+        float translation_y2 = normalization_matrix2_(1, 2);
+
+        math::Matrix3 normalization_matrix2_inverse = {
+            { 1.f / scale_factor2, 0, -translation_x2 / scale_factor2 },
+            { 0, 1.f / scale_factor2, -translation_y2 / scale_factor2 },
+            { 0, 0, 1 }
+        };
+
+        for (int iter = 0; iter < 1000; iter++)
+        {
+            std::cout << "iteration " << iter << "\r" << std::flush;
+            std::vector<Match> sample = random_pick(matches);
+            math::Matrix3 H = compute_homography_minimal_DLT(sample);
+            int inliers = 0;
+            std::vector<Match> inlier_matches;
+
+            for (const auto& m : matches)
+            {
+                // std::cout << "normalized homography: " << H << "\n";
+                // std::cout << "denormalized homography: " << H_denormalized
+                //           << "\n";
+                math::Vector3 t1p1 = normalization_matrix1_
+                    * math::Vector3({ keypoints1_[m.idx1].x,
+                                      keypoints1_[m.idx1].y, 1 });
+                math::Vector3 t2p2 = normalization_matrix2_
+                    * math::Vector3({ keypoints2_[m.idx2].x,
+                                      keypoints2_[m.idx2].y, 1 });
+                std::pair<float, float> projected = apply_homography(H, t2p2);
+                float distance = std::sqrt((projected.first - t1p1[0])
+                                               * (projected.first - t1p1[0])
+                                           + (projected.second - t1p1[1])
+                                               * (projected.second - t1p1[1]));
+                // std::cout << "distance between (" << projected.first << ", "
+                //           << projected.second << ") and " << t1p1 << "\n";
+                // std::cout << "distance: " << distance << "\n";
+                if (distance < 3)
+                {
+                    inliers++;
+                    inlier_matches.emplace_back(m);
+                }
+            }
+            if (inliers > best_inliers_count)
+            {
+                best_inliers = inlier_matches;
+                best_inliers_count = inliers;
+            }
+            // std::cout << "inliers : " << inliers << "\n";
+        }
+
+        math::Matrix3 denormalized = normalization_matrix2_inverse
+            * compute_homography_full_DLT(best_inliers)
+            * normalization_matrix1_;
+        for (int i = 0; i < 9; i++)
+        {
+            denormalized(i / 3, i % 3) /= denormalized(2, 2);
+        }
+        return denormalized;
+    }
+
+    math::Matrix3
+    DescriptorMatcher::make_hartley_norm(const std::vector<KeyPoint>& keypoints,
+                                         const std::vector<int>& indices)
+    {
+        float cx = 0;
+        float cy = 0;
+        for (int index : indices)
+        {
+            cx += keypoints[index].x;
+            cy += keypoints[index].y;
+        }
+        cx /= indices.size();
+        cy /= indices.size();
+
+        float mean_distance = 0;
+        for (int index : indices)
+        {
+            float dx = keypoints[index].x - cx;
+            float dy = keypoints[index].y - cy;
+            mean_distance += std::sqrt(dx * dx + dy * dy);
+        }
+        mean_distance /= indices.size();
+
+        float scale = std::sqrt(2.0) / mean_distance;
+
+        return { { scale, 0, -scale * cx },
+                 { 0, scale, -scale * cy },
+                 { 0, 0, 1 } };
+    }
+
+    void DescriptorMatcher::compute_point_normalization()
+    {
+        std::vector<int> indices1;
+        std::vector<int> indices2;
+        for (unsigned match_index = 0; match_index < matches_.size();
+             match_index++)
+        {
+            indices1.emplace_back(matches_[match_index].idx1);
+            indices2.emplace_back(matches_[match_index].idx2);
+        }
+        normalization_matrix1_ = make_hartley_norm(keypoints1_, indices1);
+        normalization_matrix2_ = make_hartley_norm(keypoints2_, indices2);
+    }
+
+    std::vector<std::pair<float, float>>
+    DescriptorMatcher::warp_corners(const math::Matrix3& H, int width,
+                                    int height)
+    {
+        std::vector<std::pair<float, float>> corners = {
+            { 0, 0 }, { width, 0 }, { width, height }, { 0, height }
+        };
+
+        std::vector<std::pair<float, float>> warped;
+        for (auto [x, y] : corners)
+        {
+            math::Vector3 p = H * math::Vector3({ x, y, 1 });
+            warped.push_back({ p[0] / p[2], p[1] / p[2] });
+        }
+        return warped;
+    }
+
+    std::vector<float>
+    DescriptorMatcher::bilinear_sample(const image::ColorImage* image, float x,
+                                       float y)
+    {
+        std::vector<float> result;
+
+        int x0 = static_cast<int>(std::floor(x));
+        int y0 = static_cast<int>(std::floor(y));
+        int x1 = x0 + 1;
+        int y1 = y0 + 1;
+        if (x0 < 0 || x1 >= image->get_width() || y0 < 0
+            || y1 >= image->get_height())
+        {
+            return { 0, 0, 0 };
+        }
+        float dx = x - x0;
+        float dy = y - y0;
+
+        std::vector<float> color00 = (*image)(x0, y0);
+        std::vector<float> color10 = (*image)(x1, y0);
+        std::vector<float> color01 = (*image)(x0, y1);
+        std::vector<float> color11 = (*image)(x1, y1);
+
+        for (int channel_index = 0; channel_index < 3; channel_index++)
+        {
+            result.emplace_back((1 - dx) * (1 - dy) * color00[channel_index]
+                                + dx * (1 - dy) * color10[channel_index]
+                                + (1 - dx) * dy * color01[channel_index]
+                                + dx * dy * color11[channel_index]);
+        }
+        return result;
+    }
+
+    image::ColorImage* DescriptorMatcher::stitch(const image::ColorImage* image1,
+                                                const image::ColorImage* image2)
+    {
+        math::Matrix3 H = compute_homography(matches_);
+        std::cout << "H: " << H << "\n";
+
+        std::vector<math::Vector3> image2_corners = {
+            {0.0f, 0.0f, 1.0f},
+            {static_cast<float>(image2->get_width()), 0.0f, 1.0f},
+            {0.0f, static_cast<float>(image2->get_height()), 1.0f},
+            {static_cast<float>(image2->get_width()), static_cast<float>(image2->get_height()), 1.0f}
+        };
+
+        math::Matrix3 H_inv = H.inverse();
+
+        std::vector<math::Vector<float, 2>> warped_corners;
+        for (const auto& pt : image2_corners)
+        {
+            math::Vector3 warped = H_inv * pt;
+            warped_corners.push_back({warped[0] / warped[2], warped[1] / warped[2]});
+        }
+
+        float min_x = 0.0f, min_y = 0.0f;
+        float max_x = static_cast<float>(image1->get_width());
+        float max_y = static_cast<float>(image1->get_height());
+
+        for (const auto& pt : warped_corners)
+        {
+            min_x = std::min(min_x, pt[0]);
+            min_y = std::min(min_y, pt[1]);
+            max_x = std::max(max_x, pt[0]);
+            max_y = std::max(max_y, pt[1]);
+        }
+
+        int pano_width = static_cast<int>(std::ceil(max_x - min_x));
+        int pano_height = static_cast<int>(std::ceil(max_y - min_y));
+
+        image::ColorPPMImage* panorama = new image::ColorPPMImage(pano_width, pano_height);
+
+        float blend_start_x = std::max(warped_corners[0][0], 0.0f);
+        float blend_end_x = std::min(static_cast<float>(image1->get_width()), warped_corners[1][0]);
+
+        if (blend_start_x > blend_end_x)
+            std::swap(blend_start_x, blend_end_x);
+
+        for (int y = 0; y < pano_height; y++)
+        {
+            for (int x = 0; x < pano_width; x++)
+            {
+                float pano_x = x + min_x;
+                float pano_y = y + min_y;
+
+                math::Vector3 pt = H * math::Vector3({pano_x, pano_y, 1.0f});
+                float u = pt[0] / pt[2];
+                float v = pt[1] / pt[2];
+
+                bool inside_image1 = (pano_x >= 0 && pano_x < image1->get_width() && pano_y >= 0 && pano_y < image1->get_height());
+                bool inside_image2 = (u >= 0 && u < image2->get_width() && v >= 0 && v < image2->get_height());
+
+                if (inside_image1 && inside_image2)
+                {
+                    std::vector<float> pixel1 = bilinear_sample(image1, pano_x, pano_y);
+                    std::vector<float> pixel2 = bilinear_sample(image2, u, v);
+
+                    if (pano_x >= blend_start_x && pano_x <= blend_end_x)
+                    {
+                        float blending = linear_blending(pano_x, blend_end_x, blend_start_x);
+                        (*panorama)(x, y) = {
+                            pixel1[0] * blending + pixel2[0] * (1 - blending),
+                            pixel1[1] * blending + pixel2[1] * (1 - blending),
+                            pixel1[2] * blending + pixel2[2] * (1 - blending)
+                        };
+                    }
+                    else if (pano_x < blend_start_x)
+                    {
+                        (*panorama)(x, y) = pixel1;
+                    }
+                    else
+                    {
+                        (*panorama)(x, y) = pixel2;
+                    }
+                }
+                else if (inside_image1)
+                {
+                    (*panorama)(x, y) = bilinear_sample(image1, pano_x, pano_y);
+                }
+                else if (inside_image2)
+                {
+                    (*panorama)(x, y) = bilinear_sample(image2, u, v);
+                }
+                else
+                {
+                    (*panorama)(x, y) = {0.0f, 0.0f, 0.0f};
+                }
+            }
+        }
+        double total_error = 0.0;
+        double total_squared_error = 0.0;
+        int overlap_pixel_count = 0;
+        for (int y = 0; y < pano_height; y++) {
+            for (int x = 0; x < pano_width; x++) {
+                math::Vector3 point = H * math::Vector3({ static_cast<float>(x), static_cast<float>(y), 1.0f });
+                float u = point[0] / point[2];
+                float v = point[1] / point[2];
+                bool inside_image2 = image2->is_valid_access(u, v);
+                bool inside_image1 = image1->is_valid_access(x, y);
+
+                if (inside_image1 && inside_image2) {
+                    std::vector<float> pixel1 = (*image1)(x, y);
+                    std::vector<float> pixel2 = bilinear_sample(image2, u, v);
+
+                    for (int channel = 0; channel < 3; channel++) {
+                        float diff = pixel1[channel] - pixel2[channel];
+                        total_error += std::abs(diff);
+                        total_squared_error += diff * diff;
+                    }
+                    overlap_pixel_count++;
+                }
+            }
+        }
+        if (overlap_pixel_count > 0) {
+            double mae = total_error / (overlap_pixel_count * 3.0);
+            double rmse = std::sqrt(total_squared_error / (overlap_pixel_count * 3.0));
+
+            std::cout << "Overlap MAE: " << mae << "\n";
+            std::cout << "Overlap RMSE: " << rmse << "\n";
+        }
+        else {
+            std::cout << "No overlap found\n";
+        }
+
+        float total_gradient = 0.0f;
+        int gradient_pixel_count = 0;
+
+        for (int y = 0; y < pano_height; ++y) {
+            for (int x = static_cast<int>(blend_start_x); x < static_cast<int>(blend_end_x) - 1; ++x) {
+                std::vector<float> color1 = (*panorama)(x, y);
+                std::vector<float> color2 = (*panorama)(x + 1, y);
+
+                float intensity1 = 0.299f * color1[0] + 0.587f * color1[1] + 0.114f * color1[2];
+                float intensity2 = 0.299f * color2[0] + 0.587f * color2[1] + 0.114f * color2[2];
+
+                float gradient = std::abs(intensity2 - intensity1);
+
+                total_gradient += gradient;
+                gradient_pixel_count++;
+            }
+        }
+        if (gradient_pixel_count > 0) {
+            float avg_gradient = total_gradient / static_cast<float>(gradient_pixel_count);
+            std::cout << "Average seam gradient: " << avg_gradient << "\n";
+        } else {
+            std::cout << "No gradient pixels in blend region.\n";
+        }
+
+
+        return panorama;
+    }
+
+    float DescriptorMatcher::linear_blending(int x, int image1_width,
+                                             int image2_start)
+    {
+        if (x < image2_start)
+        {
+            return 1.;
+        }
+        if (x < image1_width)
+        {
+            return std::clamp(static_cast<float>(image1_width - x)
+                / static_cast<float>(image1_width - image2_start), 0.0f, 1.0f);
+        }
+        return 0.;
+    }
+
+} // namespace tifo::panorama::sift

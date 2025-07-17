@@ -1,28 +1,72 @@
 #include <config/config-launcher.hh>
-#include <filters/gaussian.hh>
-#include <filters/laplacian.hh>
-#include <filters/sobel.hh>
 #include <images/color-ppm-image.hh>
 #include <images/grayscale-ppm-image.hh>
+#include <iostream>
+#include <math/matrix.hh>
+#include <panorama/cutter/overlap-rectangular-cutter.hh>
+#include <panorama/sift/descriptor-matching.hh>
+#include <panorama/sift/sift.hh>
+#include <filters/sobel.hh>
 
 int main()
 {
     // tifo::config::ConfigLauncher config_launcher("config.yaml");
 
-    tifo::image::ColorPPMImage input_image;
-    input_image.read("./tests/julie2.ppm");
+    tifo::panorama::sift::SIFT sift;
+
+    tifo::image::ColorPPMImage bedroom2, bedroom1;
+    bedroom2.read("tests/front_01.ppm");
+    bedroom1.read("tests/front_02.ppm");
+
+    std::cout << "Detecting SIFT features...\n";
+    auto keypoints1 = sift.detect_and_compute(bedroom2.to_grayscale());
+
+    /*for (const auto& keypoint : keypoints1)
+    {
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                if (bedroom2.is_valid_access(keypoint.x + dx, keypoint.y + dy)) {
+                    bedroom2(keypoint.x + dx, keypoint.y + dy)[0] = 1;
+                    bedroom2(keypoint.x + dx, keypoint.y + dy)[1] = 0;
+                    bedroom2(keypoint.x + dx, keypoint.y + dy)[2] = 1;
+                }
+            }
+        }
+    }
+    bedroom2.write("front_01_kp.ppm");*/
+
+    auto keypoints2 = sift.detect_and_compute(bedroom1.to_grayscale());
+
+    /*for (const auto& keypoint : keypoints2)
+    {
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                if (bedroom1.is_valid_access(keypoint.x + dx, keypoint.y + dy)) {
+
+                    bedroom1(keypoint.x + dx, keypoint.y + dy)[0] = 1;
+                    bedroom1(keypoint.x + dx, keypoint.y + dy)[1] = 0;
+                    bedroom1(keypoint.x + dx, keypoint.y + dy)[2] = 0;
+                }
+            }
+        }
+    }
+
+    bedroom1.write("front_02_kp.ppm");*/
+
+    tifo::panorama::sift::DescriptorMatcher matcher;
+    std::vector<tifo::panorama::sift::Match> matches =
+        matcher.robust_matching(keypoints1, keypoints2);
+    tifo::image::ColorImage* final_result =
+        matcher.stitch(&bedroom2, &bedroom1);
+    final_result->write("final.ppm");
+
     tifo::filter::Sobel sobel;
-    tifo::image::GrayscaleImage* result =
-        sobel.apply_on_image(input_image.to_grayscale());
-    result->write("sobel.ppm");
-    tifo::filter::Laplacian laplacian;
-    tifo::image::GrayscaleImage* result_laplacian =
-        laplacian.apply_on_image(input_image.to_grayscale());
-    result_laplacian->write("laplacian.ppm");
-
-    tifo::filter::GaussianFilter<3> gaussian_filter(2);
-
-    input_image.to_grayscale()->downsample(2)->write("downsampled.ppm");
+    tifo::image::GrayscaleImage* grayscale_sobel = sobel.apply_on_image(final_result->to_grayscale());
+    grayscale_sobel->write("sobel.ppm");
 
     return 0;
 }

@@ -47,6 +47,9 @@ namespace tifo::math
         static Matrix<ElementType, lines, columns> identity()
             requires(lines == columns);
 
+        Matrix<ElementType, lines, columns> inverse()
+            requires(lines == columns);
+
     private:
         container_type elements_;
     };

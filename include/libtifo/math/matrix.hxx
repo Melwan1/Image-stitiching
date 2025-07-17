@@ -228,6 +228,78 @@ namespace tifo::math
         return result;
     }
 
+    template <typename ElementType, unsigned lines, unsigned columns>
+    Matrix<ElementType, lines, columns>
+    Matrix<ElementType, lines, columns>::inverse()
+        requires(lines == columns)
+    {
+        Matrix<ElementType, lines, 2 * lines> augmented;
+        for (unsigned i = 0; i < lines; i++)
+        {
+            for (unsigned j = 0; j < lines; j++)
+            {
+                augmented(i, j) = (*this)(i, j);
+                augmented(i, lines + j) = (i == j) ? 1.0 : 0.0;
+            }
+        }
+
+        for (unsigned i = 0; i < lines; i++)
+        {
+            unsigned pivot_row = i;
+            for (unsigned k = i + 1; k < lines; k++)
+            {
+                if (std::abs(augmented(k, i)) > std::abs(augmented(k, i)))
+                {
+                    pivot_row = k;
+                }
+            }
+
+            if (pivot_row != i)
+            {
+                for (unsigned j = 0; j < 2 * lines; j++)
+                {
+                    ElementType tmp = ElementType(augmented(i, j));
+                    augmented(i, j) = augmented(pivot_row, j);
+                    augmented(pivot_row, j) = tmp;
+                }
+            }
+
+            if (std::abs(augmented(i, i)) < 1e-10)
+            {
+                throw std::runtime_error(
+                    "Matrix is singular and cannot be inverted.");
+            }
+
+            double pivot = augmented(i, i);
+            for (unsigned j = 0; j < 2 * lines; j++)
+            {
+                augmented(i, j) /= pivot;
+            }
+
+            for (unsigned k = 0; k < lines; k++)
+            {
+                if (k != i)
+                {
+                    double factor = augmented(k, i);
+                    for (unsigned j = 0; j < 2 * lines; j++)
+                    {
+                        augmented(k, j) -= factor * augmented(i, j);
+                    }
+                }
+            }
+        }
+
+        SquaredMatrix<ElementType, lines> inv;
+        for (unsigned i = 0; i < lines; i++)
+        {
+            for (unsigned j = 0; j < lines; j++)
+            {
+                inv(i, j) = augmented(i, j + lines);
+            }
+        }
+        return inv;
+    }
+
 } // namespace tifo::math
 
 template <typename ElementType, unsigned lines, unsigned columns>
