@@ -1,1 +1,1 @@
-# TIFO project
+# Image Stitching
